@@ -132,7 +132,7 @@ struct LicenseManagementView: View {
                 LicenseProMark()
 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("VoiceInk Pro")
+                    Text("Sonotype Pro")
                         .font(licenseTitleFont)
 
                     Text(trialSummary)
@@ -201,7 +201,7 @@ struct LicenseManagementView: View {
 
     private var activeLicenseCard: some View {
         LicenseActiveSummaryCard(
-            title: "VoiceInk Pro",
+            title: "Sonotype Pro",
             subtitle: String(format: String(localized: "Version %@ (%@)"), appVersion, appBuild),
             licenseKey: licenseViewModel.licenseKey,
             didCopyLicenseKey: didCopyLicenseKey,

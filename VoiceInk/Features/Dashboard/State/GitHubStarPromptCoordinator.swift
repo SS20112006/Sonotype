@@ -33,7 +33,7 @@ final class GitHubStarPromptCoordinator: ObservableObject {
     // Shown in the Dashboard footer only once Later has been clicked - never appears from a toast-only flow.
     var showsFooterStarButton: Bool { hasDeferredAtLeastOnce && (!isResolved || completionState != .none) }
 
-    private static let repoURL = URL(string: "https://github.com/Beingpax/VoiceInk")!
+    private static let repoURL = URL(string: "https://github.com/SS20112006/Sonotype")!
     private static let showDelaySeconds: TimeInterval = 3
     private static let completionDisplaySeconds: TimeInterval = 1.5
     private static let minimumCompletedSessionsToPrompt = 30

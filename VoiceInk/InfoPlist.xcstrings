@@ -5,28 +5,28 @@
       "comment" : "Bundle display name",
       "extractionState" : "extracted_with_value",
       "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "VoiceInk"
-          }
-        },
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "VoiceInk"
+            "state" : "translated",
+            "value" : "Sonotype"
           }
         },
-        "zh-Hans" : {
+        "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VoiceInk"
+            "value" : "Sonotype"
           }
         },
-        "fr" : {
+        "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VoiceInk"
+            "value" : "Sonotype"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sonotype"
           }
         }
       }
@@ -35,28 +35,28 @@
       "comment" : "Bundle name",
       "extractionState" : "extracted_with_value",
       "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "VoiceInk"
-          }
-        },
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "VoiceInk"
+            "state" : "translated",
+            "value" : "Sonotype"
           }
         },
-        "zh-Hans" : {
+        "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VoiceInk"
+            "value" : "Sonotype"
           }
         },
-        "fr" : {
+        "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VoiceInk"
+            "value" : "Sonotype"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sonotype"
           }
         }
       }
@@ -64,28 +64,28 @@
     "CFBundleTypeName" : {
       "extractionState" : "stale",
       "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Audio-/Videodatei"
-          }
-        },
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Audio/Video File"
           }
         },
-        "zh-Hans" : {
+        "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "音频/视频文件"
+            "value" : "Ficheiro Áudio/Vídeo"
           }
         },
-        "fr" : {
+        "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fichier audio/vidéo"
+            "value" : "Ficheiro Áudio/Vídeo"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arquivo de Áudio/Vídeo"
           }
         }
       }
@@ -94,28 +94,28 @@
       "comment" : "Privacy - AppleEvents Sending Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "VoiceInk muss mit Ihrem Browser interagieren, um die aktuelle Website zu erkennen und website-spezifische Konfigurationen anzuwenden."
-          }
-        },
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "VoiceInk needs to interact with your browser to detect the current website for applying website-specific configurations."
+            "state" : "translated",
+            "value" : "Sonotype needs to interact with your browser to detect the current website for applying website-specific configurations."
           }
         },
-        "zh-Hans" : {
+        "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VoiceInk 需要与浏览器交互以检测当前网站，从而应用针对特定网站的配置。"
+            "value" : "O Sonotype precisa de interagir com o seu navegador para detetar o website atual e aplicar configurações específicas."
           }
         },
-        "fr" : {
+        "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VoiceInk doit interagir avec votre navigateur pour détecter le site Web actuel afin d'appliquer des configurations spécifiques au site Web."
+            "value" : "O Sonotype precisa de interagir com o seu navegador para detetar o website atual e aplicar configurações específicas."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Sonotype precisa interagir com seu navegador para detectar o site atual e aplicar configurações específicas."
           }
         }
       }
@@ -124,25 +124,25 @@
       "comment" : "Copyright (human-readable)",
       "extractionState" : "extracted_with_value",
       "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : ""
-          }
-        },
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : ""
           }
         },
-        "zh-Hans" : {
+        "pt" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : ""
           }
         },
-        "fr" : {
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ""
+          }
+        },
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : ""
@@ -154,28 +154,28 @@
       "comment" : "Privacy - Microphone Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "VoiceInk benötigt Zugriff auf Ihr Mikrofon, um Audio für die Transkription aufzunehmen."
-          }
-        },
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "VoiceInk needs access to your microphone to record audio for transcription."
+            "state" : "translated",
+            "value" : "Sonotype needs access to your microphone to record audio for transcription."
           }
         },
-        "zh-Hans" : {
+        "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VoiceInk 需要访问麦克风以录制音频用于转录。"
+            "value" : "O Sonotype necessita de acesso ao seu microfone para gravar áudio para transcrição."
           }
         },
-        "fr" : {
+        "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VoiceInk a besoin d'accéder à votre microphone pour enregistrer l'audio à des fins de transcription."
+            "value" : "O Sonotype necessita de acesso ao seu microfone para gravar áudio para transcrição."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Sonotype precisa de acesso ao seu microfone para gravar áudio para transcrição."
           }
         }
       }
@@ -183,28 +183,28 @@
     "NSScreenCaptureUsageDescription" : {
       "extractionState" : "stale",
       "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "VoiceInk benötigt Zugriff auf die Bildschirmaufnahme, um Kontext von Ihrem Bildschirm für eine höhere Transkriptionsgenauigkeit zu erfassen."
-          }
-        },
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "VoiceInk needs screen recording access to understand context from your screen for improved transcription accuracy."
+            "state" : "translated",
+            "value" : "Sonotype needs screen recording access to understand context from your screen for improved transcription accuracy."
           }
         },
-        "zh-Hans" : {
+        "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VoiceInk 需要屏幕录制权限以理解屏幕上的上下文，提高转录准确性。"
+            "value" : "O Sonotype necessita de acesso à gravação de ecrã para compreender o contexto do ecrã e aumentar a precisão da transcrição."
           }
         },
-        "fr" : {
+        "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "VoiceInk a besoin d'un accès à l'enregistrement d'écran pour comprendre le contexte de votre écran afin d'améliorer la précision de la transcription."
+            "value" : "O Sonotype necessita de acesso à gravação de ecrã para compreender o contexto do ecrã e aumentar a precisão da transcrição."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Sonotype precisa de acesso à gravação de tela para entender o contexto da tela e aumentar a precisão da transcrição."
           }
         }
       }

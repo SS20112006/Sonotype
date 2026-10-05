@@ -6,7 +6,7 @@ enum AppLanguagePreference {
 
     private static let appleLanguagesKey = "AppleLanguages"
     private static let managesAppleLanguagesKey = "AppLanguagePreferenceManagedAppleLanguages"
-    private static let bundledLanguageIdentifiers = ["en", "de", "fr", "zh-Hans"]
+    private static let bundledLanguageIdentifiers = ["en", "pt-PT", "pt-BR"]
 
     struct Option: Identifiable, Hashable {
         let id: String
@@ -51,18 +51,7 @@ enum AppLanguagePreference {
     }
 
     private static var availableLanguageIdentifiers: [String] {
-        let localizedBundleIdentifiers = Bundle.main.localizations.filter { identifier in
-            identifier != "Base" && !identifier.isEmpty
-        }
-
-        let discoveredIdentifiers = Set(bundledLanguageIdentifiers + localizedBundleIdentifiers)
-        let bundledIdentifiers = bundledLanguageIdentifiers.filter { discoveredIdentifiers.contains($0) }
-        let additionalIdentifiers =
-            discoveredIdentifiers
-            .subtracting(bundledLanguageIdentifiers)
-            .sorted { displayName(for: $0) < displayName(for: $1) }
-
-        return bundledIdentifiers + additionalIdentifiers
+        bundledLanguageIdentifiers
     }
 
     private static func displayName(for identifier: String) -> String {
