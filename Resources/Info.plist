@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.sonotype.Sonotype</string>
+    <key>CFBundleName</key>
+    <string>Sonotype</string>
+    <key>CFBundleDisplayName</key>
+    <string>Sonotype</string>
+    <key>CFBundleExecutable</key>
+    <string>Sonotype</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Sonotype necessita de acesso ao microfone para transcrição de voz no dispositivo.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Sonotype utiliza o reconhecimento de fala da Apple no dispositivo para transcrição offline.</string>
+</dict>
+</plist>
