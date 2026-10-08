@@ -51,20 +51,51 @@ public final class PermissionsSettingsCoordinator: ObservableObject, Sendable {
             }
             .store(in: &cancellables)
 
-        // Se o serviço for um ObservableObject concreto, reagir às alterações publicadas
+        // Se o serviço for um ObservableObject concreto, sincroniza apenas o estado local sem invocar refresh circular
         if let observableService = permissionsService as? PermissionsService {
             observableService.objectWillChange
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in
-                    self?.refreshStatuses()
+                    guard let self = self else { return }
+                    self.syncFromService(triggerFeedback: false)
                 }
                 .store(in: &cancellables)
         }
     }
 
+    /// Sincroniza as variáveis publicadas com o estado do serviço apenas quando há alterações reais.
+    @discardableResult
+    private func syncFromService(triggerFeedback: Bool) -> Bool {
+        let newMic = permissionsService.isMicrophoneAuthorized
+        let newSpeech = permissionsService.isSpeechAuthorized
+        let newAx = permissionsService.isAccessibilityAuthorized
+
+        var hasChanged = false
+        if self.isMicrophoneAuthorized != newMic {
+            self.isMicrophoneAuthorized = newMic
+            hasChanged = true
+        }
+        if self.isSpeechAuthorized != newSpeech {
+            self.isSpeechAuthorized = newSpeech
+            hasChanged = true
+        }
+        if self.isAccessibilityAuthorized != newAx {
+            self.isAccessibilityAuthorized = newAx
+            hasChanged = true
+        }
+
+        if hasChanged || self.lastRefreshedAt == nil {
+            self.lastRefreshedAt = Date()
+            if triggerFeedback && hasChanged {
+                self.feedbackTrigger += 1
+            }
+        }
+        return hasChanged
+    }
+
     /// Inicia monitorização periódica das permissões enquanto a aba estiver visível.
-    public func startPolling() {
-        permissionsService.startPolling(interval: 0.5)
+    public func startPolling(interval: TimeInterval = 0.5) {
+        permissionsService.startPolling(interval: interval)
     }
 
     /// Interrompe monitorização periódica das permissões.
@@ -75,11 +106,7 @@ public final class PermissionsSettingsCoordinator: ObservableObject, Sendable {
     /// Atualiza imediatamente os estados de microfone, fala e acessibilidade.
     public func refreshStatuses() {
         permissionsService.refreshStatuses()
-        self.isMicrophoneAuthorized = permissionsService.isMicrophoneAuthorized
-        self.isSpeechAuthorized = permissionsService.isSpeechAuthorized
-        self.isAccessibilityAuthorized = permissionsService.isAccessibilityAuthorized
-        self.lastRefreshedAt = Date()
-        self.feedbackTrigger += 1
+        _ = syncFromService(triggerFeedback: true)
     }
 
     /// Requisita permissão de acesso ao microfone ao macOS.

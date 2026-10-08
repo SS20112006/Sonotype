@@ -134,13 +134,24 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
             .store(in: &cancellables)
     }
 
-    /// Atualiza imediatamente os estados observáveis de microfone, fala e acessibilidade.
+    /// Atualiza imediatamente os estados observáveis de microfone, fala e acessibilidade apenas quando há alteração.
     public func refreshStatuses() {
-        self.microphoneStatus = AVCaptureDevice.authorizationStatus(for: .audio)
-        self.speechStatus = SFSpeechRecognizer.authorizationStatus()
+        let newMic = AVCaptureDevice.authorizationStatus(for: .audio)
+        if self.microphoneStatus != newMic {
+            self.microphoneStatus = newMic
+        }
+
+        let newSpeech = SFSpeechRecognizer.authorizationStatus()
+        if self.speechStatus != newSpeech {
+            self.speechStatus = newSpeech
+        }
+
         let promptKey = "AXTrustedCheckOptionPrompt" as CFString
         let options = [promptKey: kCFBooleanFalse as Any] as CFDictionary
-        self.isAccessibilityAuthorized = AXIsProcessTrustedWithOptions(options)
+        let newAx = AXIsProcessTrustedWithOptions(options)
+        if self.isAccessibilityAuthorized != newAx {
+            self.isAccessibilityAuthorized = newAx
+        }
     }
 
     /// Inicia temporizador de monitorização periódica durante os passos de Onboarding ou ecrã de Definições.

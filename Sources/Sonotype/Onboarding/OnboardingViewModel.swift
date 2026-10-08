@@ -87,21 +87,48 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
             }
             .store(in: &cancellables)
 
-        // Se o serviço de permissões for um ObservableObject, propaga mudanças para a view atualizar a UI
+        // Se o serviço de permissões for um ObservableObject, propaga mudanças para a view atualizar a UI sem ciclo recursivo
         if let permissionsObservable = permissionsService as? PermissionsService {
             permissionsObservable.objectWillChange
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in
                     guard let self = self else { return }
-                    self.refreshStatuses()
+                    self.syncFromService()
                 }
                 .store(in: &cancellables)
         }
     }
 
+    /// Sincroniza as variáveis publicadas locais com o estado do serviço apenas quando há alterações.
+    @discardableResult
+    private func syncFromService() -> Bool {
+        let newAx = permissionsService.isAccessibilityAuthorized
+        let newMic = permissionsService.isMicrophoneAuthorized
+        let newSpeech = permissionsService.isSpeechAuthorized
+
+        var changed = false
+        if self.isAccessibilityAuthorized != newAx {
+            self.isAccessibilityAuthorized = newAx
+            changed = true
+        }
+        if self.isMicrophoneAuthorized != newMic {
+            self.isMicrophoneAuthorized = newMic
+            changed = true
+        }
+        if self.isSpeechAuthorized != newSpeech {
+            self.isSpeechAuthorized = newSpeech
+            changed = true
+        }
+
+        if changed {
+            objectWillChange.send()
+        }
+        return changed
+    }
+
     /// Inicia a monitorização periódica das permissões (ex: ao exibir o ecrã de Onboarding).
-    public func startPolling() {
-        permissionsService.startPolling(interval: 0.5)
+    public func startPolling(interval: TimeInterval = 0.5) {
+        permissionsService.startPolling(interval: interval)
     }
 
     /// Interrompe a monitorização periódica das permissões (ex: ao ocultar o ecrã de Onboarding).
@@ -112,10 +139,7 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
     /// Atualiza imediatamente os estados das permissões de sistema consultando o serviço.
     public func refreshStatuses() {
         permissionsService.refreshStatuses()
-        self.isAccessibilityAuthorized = permissionsService.isAccessibilityAuthorized
-        self.isMicrophoneAuthorized = permissionsService.isMicrophoneAuthorized
-        self.isSpeechAuthorized = permissionsService.isSpeechAuthorized
-        objectWillChange.send()
+        _ = syncFromService()
     }
 
     /// Força o avanço direto para o playground sem exigir confirmação do TCC/SO.

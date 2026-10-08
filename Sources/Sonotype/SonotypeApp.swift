@@ -522,6 +522,19 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         window.isReleasedWhenClosed = false
         self.onboardingWindow = window
 
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self, weak window] _ in
+            Task { @MainActor [weak self, weak window] in
+                if self?.onboardingWindow === window {
+                    self?.onboardingWindow = nil
+                    self?.dockCoordinator?.syncWithOpenWindows()
+                }
+            }
+        }
+
         window.makeKeyAndOrderFront(nil)
         window.orderFrontRegardless()
         dockCoordinator?.syncWithOpenWindows()
@@ -589,6 +602,19 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         window.center()
         window.isReleasedWhenClosed = false
         self.settingsWindow = window
+
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self, weak window] _ in
+            Task { @MainActor [weak self, weak window] in
+                if self?.settingsWindow === window {
+                    self?.settingsWindow = nil
+                    self?.dockCoordinator?.syncWithOpenWindows()
+                }
+            }
+        }
 
         window.makeKeyAndOrderFront(nil)
         window.orderFrontRegardless()

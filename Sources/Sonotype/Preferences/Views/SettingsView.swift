@@ -9,6 +9,7 @@ public struct SettingsView: View {
     public let permissionsService: PermissionsServiceProtocol
     public var onRelaunchOnboarding: (@MainActor @Sendable () -> Void)?
     @State public var selectedTab: SettingsTab
+    @StateObject private var permissionsCoordinator: PermissionsSettingsCoordinator
 
     public init(
         preferencesManager: PreferencesManager = .shared,
@@ -20,6 +21,10 @@ public struct SettingsView: View {
         self.permissionsService = permissionsService
         self._selectedTab = State(initialValue: initialTab)
         self.onRelaunchOnboarding = onRelaunchOnboarding
+        self._permissionsCoordinator = StateObject(wrappedValue: PermissionsSettingsCoordinator(
+            permissionsService: permissionsService,
+            onRelaunchOnboarding: onRelaunchOnboarding
+        ))
     }
 
     public var body: some View {
@@ -30,14 +35,11 @@ public struct SettingsView: View {
                 }
                 .tag(SettingsTab.general)
 
-            PermissionsSettingsTabView(
-                permissionsService: permissionsService,
-                onRelaunchOnboarding: onRelaunchOnboarding
-            )
-            .tabItem {
-                Label(SettingsTab.permissions.title, systemImage: SettingsTab.permissions.systemImage)
-            }
-            .tag(SettingsTab.permissions)
+            PermissionsSettingsTabView(coordinator: permissionsCoordinator)
+                .tabItem {
+                    Label(SettingsTab.permissions.title, systemImage: SettingsTab.permissions.systemImage)
+                }
+                .tag(SettingsTab.permissions)
 
             RecordingSettingsTabView(preferencesManager: preferencesManager)
                 .tabItem {
