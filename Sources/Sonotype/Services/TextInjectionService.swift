@@ -2,6 +2,7 @@ import AppKit
 @preconcurrency import ApplicationServices
 import CoreGraphics
 import Foundation
+import os
 
 /// Método utilizado para realizar a injeção do texto.
 public enum TextInjectionMethod: String, Sendable, Equatable {
@@ -16,10 +17,8 @@ public enum TextInjectionMethod: String, Sendable, Equatable {
 public enum TextInjectionStrategy: String, Sendable, CaseIterable {
     /// Tenta AXUIElement primeiro; se o elemento não suportar ou falhar, recorre a CGEvent.
     case accessibilityWithFallback
-
     /// Força unicamente injeção por Acessibilidade (AXUIElement).
     case accessibilityOnly
-
     /// Força unicamente injeção por eventos de teclado (CGEvent).
     case keystrokeOnly
 }
@@ -137,6 +136,8 @@ public final class SystemKeystrokeSimulator: KeystrokeSimulating, Sendable {
 /// Serviço de injeção de texto no cursor da aplicação ativa com fallback para simulação e salvaguarda do clipboard.
 @MainActor
 public final class TextInjectionService: Sendable {
+    private static let logger = Logger(subsystem: "com.sonotype.app", category: "TextInjectionService")
+
     public let accessibilityInjector: any AccessibilityTextInjecting
     public let keystrokeSimulator: any KeystrokeSimulating
     public let clipboardManager: ClipboardSafetyManager
@@ -166,6 +167,7 @@ public final class TextInjectionService: Sendable {
         keystrokeRestoreDelay: UInt64 = 75_000_000
     ) async -> TextInjectionResult {
         guard !text.isEmpty else {
+            Self.logger.warning("Pedido de injeção de texto com conteúdo vazio")
             return .failure("Texto vazio para injeção.")
         }
 
@@ -175,9 +177,12 @@ public final class TextInjectionService: Sendable {
                 if clipboardMode == .pasteAndKeep {
                     clipboardManager.setText(text)
                 }
+                Self.logger.info("Injeção realizada com sucesso via Acessibilidade (AXUIElement)")
                 return .success(with: .accessibility)
             } else {
-                return .failure("Falha na injeção via AXUIElement (elemento não acessível ou sem suporte a seleção).")
+                let reason = "Falha na injeção via AXUIElement (elemento não acessível ou sem suporte a seleção)."
+                Self.logger.error("Injeção via Acessibilidade falhou: \(reason, privacy: .public)")
+                return .failure(reason)
             }
 
         case .keystrokeOnly:
@@ -192,8 +197,10 @@ public final class TextInjectionService: Sendable {
                 if clipboardMode == .pasteAndKeep {
                     clipboardManager.setText(text)
                 }
+                Self.logger.info("Injeção realizada com sucesso via Acessibilidade (AXUIElement)")
                 return .success(with: .accessibility)
             }
+            Self.logger.info("Acessibilidade indisponível para o elemento ativo. Recorrendo a fallback via CGEvent (Cmd+V)")
             // Fallback transparente para simulação via CGEvent + Cmd+V
             return await injectViaKeystroke(
                 text: text,
@@ -208,24 +215,22 @@ public final class TextInjectionService: Sendable {
         mode: ClipboardSafetyMode,
         restoreDelay: UInt64
     ) async -> TextInjectionResult {
-        let snapshot = (mode == .preservePrevious) ? clipboardManager.captureSnapshot() : nil
-        clipboardManager.setText(text)
-
-        let success = keystrokeSimulator.simulatePasteKeystroke()
-        guard success else {
-            if let snapshot {
-                clipboardManager.restore(snapshot: snapshot)
-            }
-            return .failure("Falha ao emitir eventos CGEvent para atalho Cmd+V.")
+        var didSimulate = false
+        await clipboardManager.withPreservedClipboard(
+            text: text,
+            mode: mode,
+            restoreDelayNanoseconds: restoreDelay
+        ) {
+            didSimulate = keystrokeSimulator.simulatePasteKeystroke()
         }
 
-        if let snapshot {
-            if restoreDelay > 0 {
-                try? await Task.sleep(nanoseconds: restoreDelay)
-            }
-            clipboardManager.restore(snapshot: snapshot)
+        guard didSimulate else {
+            let reason = "Falha ao emitir eventos CGEvent para atalho Cmd+V."
+            Self.logger.error("Simulação de teclado falhou: \(reason, privacy: .public)")
+            return .failure(reason)
         }
 
+        Self.logger.info("Injeção realizada com sucesso via simulação CGEvent (Cmd+V)")
         return .success(with: .keystrokeSimulation)
     }
 }

@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import os
 
 /// Modelo observável de estado visual da pílula HUD.
 @MainActor
@@ -48,6 +49,8 @@ public struct HUDContainerView: View {
 /// e a interface SwiftUI com animações spring.
 @MainActor
 public final class HUDController: Sendable {
+    private static let logger = Logger(subsystem: "com.sonotype.app", category: "HUDController")
+
     public let panel: HUDPanel
     public let viewModel: HUDViewModel
 
@@ -84,6 +87,7 @@ public final class HUDController: Sendable {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
             viewModel.isVisible = true
         }
+        Self.logger.debug("HUD exibido com estado: \(state.rawValue, privacy: .public)")
     }
 
     /// Oculta a pílula HUD com transição fluida de saída.
@@ -97,7 +101,11 @@ public final class HUDController: Sendable {
 
             // Aguarda o término da animação spring para recolher a janela do compositor
             hideTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 350_000_000)
+                do {
+                    try await Task.sleep(nanoseconds: 350_000_000)
+                } catch {
+                    return
+                }
                 guard !Task.isCancelled, let self = self, !self.viewModel.isVisible else { return }
                 self.panel.orderOut(nil)
                 self.viewModel.displayState = .idle
@@ -109,6 +117,7 @@ public final class HUDController: Sendable {
             viewModel.displayState = .idle
             viewModel.amplitude = 0.0
         }
+        Self.logger.debug("HUD ocultado")
     }
 
     /// Atualiza a amplitude vocal em tempo real (0.0 a 1.0) para alimentar a animação C1.
@@ -135,7 +144,11 @@ public final class HUDController: Sendable {
         }
 
         hideTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 500_000_000)
+            do {
+                try await Task.sleep(nanoseconds: 500_000_000)
+            } catch {
+                return
+            }
             guard !Task.isCancelled, let self = self else { return }
             self.hide()
         }
@@ -148,25 +161,33 @@ public final class HUDController: Sendable {
 
     /// Vincula o controlador do HUD aos eventos do RecordingSessionCoordinator.
     public func attach(to coordinator: RecordingSessionCoordinator) {
+        let originalStart = coordinator.onStartRecording
         coordinator.onStartRecording = { [weak self] in
             self?.show(state: .recording)
+            originalStart?()
         }
 
         let originalFinish = coordinator.onFinishRecording
         coordinator.onFinishRecording = { [weak self] reason in
             self?.setProcessing()
+            defer {
+                self?.hide()
+            }
             if let originalFinish = originalFinish {
                 await originalFinish(reason)
             }
-            self?.hide()
         }
 
+        let originalCancel = coordinator.onCancelRecording
         coordinator.onCancelRecording = { [weak self] in
             self?.setCancelled()
+            originalCancel?()
         }
 
+        let originalAmplitude = coordinator.onAmplitudeChanged
         coordinator.onAmplitudeChanged = { [weak self] amplitude in
             self?.updateAmplitude(amplitude)
+            originalAmplitude?(amplitude)
         }
     }
 }

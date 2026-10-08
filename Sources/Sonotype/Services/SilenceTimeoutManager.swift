@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Protocolo de abstração temporal para testes determinísticos de timeout sem esperas reais no clock.
 public protocol TimeProviding: Sendable {
@@ -19,6 +20,8 @@ public struct SystemTimeProvider: TimeProviding, Sendable {
 /// durante o período configurado (padrão: 45 segundos), evitando gravações infinitas e poupando bateria.
 @MainActor
 public final class SilenceTimeoutManager: Sendable {
+    private static let logger = Logger(subsystem: "com.sonotype.app", category: "SilenceTimeoutManager")
+
     public private(set) var isRunning: Bool = false
 
     /// Duração do timeout contínuo em segundos. Se for `nil`, o timeout está desativado.
@@ -58,12 +61,17 @@ public final class SilenceTimeoutManager: Sendable {
         guard !isRunning else { return }
         isRunning = true
         lastVoiceActivityTime = timeProvider.now()
+        Self.logger.debug("SilenceTimeoutManager iniciado")
 
         checkTask?.cancel()
         // Tarefa periódica assíncrona de segurança para avaliar o timeout em background
         checkTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 500_000_000)
+                do {
+                    try await Task.sleep(nanoseconds: 500_000_000)
+                } catch {
+                    break
+                }
                 guard !Task.isCancelled, let self = self, self.isRunning else { break }
                 self.evaluateTimeout()
             }
@@ -72,9 +80,11 @@ public final class SilenceTimeoutManager: Sendable {
 
     /// Pára a monitorização de silêncio e cancela a verificação periódica.
     public func stop() {
+        guard isRunning else { return }
         isRunning = false
         checkTask?.cancel()
         checkTask = nil
+        Self.logger.debug("SilenceTimeoutManager parado")
     }
 
     /// Reinicia o marco temporal da última fala.
@@ -103,6 +113,7 @@ public final class SilenceTimeoutManager: Sendable {
 
         let elapsed = timeProvider.now().timeIntervalSince(lastVoiceActivityTime)
         if elapsed >= timeout {
+            Self.logger.info("Timeout de silêncio atingido após \(elapsed)s de inatividade contínua")
             stop()
             onSilenceTimeout?()
             return true

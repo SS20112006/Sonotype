@@ -1,9 +1,30 @@
 import Foundation
 @preconcurrency import AVFoundation
+import os
+
+/// Erros tipados do motor de captação de áudio.
+public enum AudioCaptureError: LocalizedError, Sendable {
+    case bufferAllocationFailed
+    case converterInitializationFailed
+    case conversionFailed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .bufferAllocationFailed:
+            return "Falha na alocação de buffer PCM de áudio em memória."
+        case .converterInitializationFailed:
+            return "Falha na inicialização do conversor de formato de áudio."
+        case .conversionFailed(let reason):
+            return "Falha na conversão de formato de áudio: \(reason)"
+        }
+    }
+}
 
 /// Serviço responsável pela captura de áudio exclusivamente em memória RAM.
 /// Gere o AVAudioEngine, conversão para 16kHz mono e cálculo em tempo real da amplitude.
-public final class AudioCaptureService: @unchecked Sendable {
+public class AudioCaptureService: @unchecked Sendable {
+    private static let logger = Logger(subsystem: "com.sonotype.app", category: "AudioCaptureService")
+
     private let engine: AVAudioEngine
     private let targetFormat: AVAudioFormat
     private let lock = NSLock()
@@ -16,6 +37,9 @@ public final class AudioCaptureService: @unchecked Sendable {
 
     /// Callback disparado com a amplitude normalizada (0.0 a 1.0) para alimentar a pílula HUD.
     public var onAmplitudeChanged: (@Sendable (Float) -> Void)?
+
+    /// Callback disparado quando ocorre um erro na captação ou conversão de áudio.
+    public var onError: (@Sendable (Error) -> Void)?
 
     public var isCapturing: Bool {
         lock.lock()
@@ -51,6 +75,12 @@ public final class AudioCaptureService: @unchecked Sendable {
         // Prepara conversor se o formato de hardware for diferente de 16kHz mono
         if inputFormat != targetFormat {
             self.converter = AVAudioConverter(from: inputFormat, to: targetFormat)
+            if self.converter == nil {
+                let error = AudioCaptureError.converterInitializationFailed
+                Self.logger.error("Falha ao inicializar AVAudioConverter de \(inputFormat) para \(self.targetFormat)")
+                onError?(error)
+                throw error
+            }
         } else {
             self.converter = nil
         }
@@ -63,8 +93,15 @@ public final class AudioCaptureService: @unchecked Sendable {
         }
 
         engine.prepare()
-        try engine.start()
-        _isCapturing = true
+        do {
+            try engine.start()
+            _isCapturing = true
+            Self.logger.info("Captação de áudio iniciada com sucesso")
+        } catch {
+            Self.logger.error("Falha ao iniciar AVAudioEngine: \(error.localizedDescription, privacy: .public)")
+            onError?(error)
+            throw error
+        }
     }
 
     /// Pára a captação de áudio e liberta os nós do AVAudioEngine.
@@ -77,6 +114,7 @@ public final class AudioCaptureService: @unchecked Sendable {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         _isCapturing = false
+        Self.logger.info("Captação de áudio parada")
     }
 
     /// Processa o buffer capturado em RAM: calcula amplitude e converte para 16kHz mono se necessário.
@@ -92,10 +130,9 @@ public final class AudioCaptureService: @unchecked Sendable {
         if let converter = self.converter {
             if let convertedBuffer = convertBuffer(buffer, using: converter) {
                 onBufferCaptured?(convertedBuffer)
-            } else {
-                // Fallback: se conversão falhar, envia buffer original em RAM
-                onBufferCaptured?(buffer)
             }
+            // Se conversão falhar, convertBuffer já registou o erro via logger e onError.
+            // Não emitimos buffer corrompido para não quebrar o motor de reconhecimento.
         } else {
             onBufferCaptured?(buffer)
         }
@@ -116,6 +153,8 @@ public final class AudioCaptureService: @unchecked Sendable {
         let outputFrameCapacity = AVAudioFrameCount(Double(inputBuffer.frameLength) * sampleRateRatio + 512)
 
         guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: outputFrameCapacity) else {
+            Self.logger.error("Falha ao alocar AVAudioPCMBuffer de saída na conversão")
+            onError?(AudioCaptureError.bufferAllocationFailed)
             return nil
         }
 
@@ -134,7 +173,10 @@ public final class AudioCaptureService: @unchecked Sendable {
         }
 
         let status = converter.convert(to: outputBuffer, error: &error, withInputFrom: inputBlock)
-        guard status != .error, error == nil else {
+        if status == .error || error != nil {
+            let desc = error?.localizedDescription ?? "Status code: \(status.rawValue)"
+            Self.logger.error("Falha ao converter buffer de áudio via AVAudioConverter: \(desc, privacy: .public)")
+            onError?(AudioCaptureError.conversionFailed(desc))
             return nil
         }
 

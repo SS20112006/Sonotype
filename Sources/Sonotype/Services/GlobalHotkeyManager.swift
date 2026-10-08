@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import os
 
 /// Representação tipada de uma combinação de teclas de atalho global.
 public struct GlobalHotkey: Sendable, Equatable, Hashable, Codable {
@@ -113,6 +114,8 @@ private final class MonitorTokenBox: @unchecked Sendable {
 /// Monitoriza eventos de teclado no sistema através de NSEvent global e local.
 @MainActor
 public final class SystemGlobalHotkeyManager: GlobalHotkeyMonitoring, Sendable {
+    private static let logger = Logger(subsystem: "com.sonotype.app", category: "GlobalHotkeyManager")
+
     public var isEnabled: Bool = true
     public var currentHotkey: GlobalHotkey
 
@@ -140,6 +143,7 @@ public final class SystemGlobalHotkeyManager: GlobalHotkeyMonitoring, Sendable {
     /// Inicia a escuta ativa de eventos de teclado.
     public func startMonitoring() {
         stopMonitoring()
+        Self.logger.info("Iniciando monitorização de atalhos globais")
 
         // Monitor global para quando outras aplicações do macOS estiverem em primeiro plano
         let global = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
@@ -162,6 +166,7 @@ public final class SystemGlobalHotkeyManager: GlobalHotkeyMonitoring, Sendable {
 
     /// Interrompe a escuta ativa e desaloca os monitores.
     public func stopMonitoring() {
+        Self.logger.info("Interrompendo monitorização de atalhos globais")
         monitorTokens.removeAll()
     }
 

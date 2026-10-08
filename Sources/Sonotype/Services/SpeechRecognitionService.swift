@@ -1,6 +1,7 @@
 import Foundation
 @preconcurrency import Speech
 @preconcurrency import AVFoundation
+import os
 
 /// Erros tipados do motor de reconhecimento de voz.
 public enum SpeechRecognitionError: LocalizedError, Sendable {
@@ -25,7 +26,9 @@ public enum SpeechRecognitionError: LocalizedError, Sendable {
 
 /// Serviço de reconhecimento de voz offline utilizando SFSpeechRecognizer nativo da Apple.
 /// Garante processamento exclusivamente em memória RAM e enforce de requiresOnDeviceRecognition = true.
-public final class SpeechRecognitionService: @unchecked Sendable {
+public class SpeechRecognitionService: @unchecked Sendable {
+    private static let logger = Logger(subsystem: "com.sonotype.app", category: "SpeechRecognitionService")
+
     private let lock = NSLock()
     private var recognizers: [SpeechLanguage: SFSpeechRecognizer] = [:]
     private var currentRequest: SFSpeechAudioBufferRecognitionRequest?
@@ -55,6 +58,8 @@ public final class SpeechRecognitionService: @unchecked Sendable {
         for lang in SpeechLanguage.allCases {
             if let recognizer = SFSpeechRecognizer(locale: lang.locale) {
                 recognizers[lang] = recognizer
+            } else {
+                Self.logger.warning("Reconhecedor SFSpeechRecognizer indisponível para o locale \(lang.rawValue, privacy: .public)")
             }
         }
     }
@@ -83,10 +88,12 @@ public final class SpeechRecognitionService: @unchecked Sendable {
         defer { lock.unlock() }
 
         guard !_isRecognizing else {
+            Self.logger.warning("Tentativa de iniciar reconhecimento com uma sessão já ativa")
             throw SpeechRecognitionError.alreadyRecognizing
         }
 
         guard let rec = recognizers[language] ?? SFSpeechRecognizer(locale: language.locale) else {
+            Self.logger.error("Reconhecedor de fala indisponível para o idioma \(language.rawValue, privacy: .public)")
             throw SpeechRecognitionError.recognizerUnavailable(language)
         }
 
@@ -94,6 +101,7 @@ public final class SpeechRecognitionService: @unchecked Sendable {
 
         if requiresOnDeviceRecognition && !rec.supportsOnDeviceRecognition {
             // Nota: Em simuladores ou máquinas sem modelos descarregados, avisa com erro tipado
+            Self.logger.error("Reconhecimento offline no dispositivo não suportado para \(language.rawValue, privacy: .public)")
             throw SpeechRecognitionError.onDeviceRecognitionUnsupported(language)
         }
 
@@ -103,6 +111,7 @@ public final class SpeechRecognitionService: @unchecked Sendable {
 
         self.currentRequest = request
         self._isRecognizing = true
+        Self.logger.info("Iniciando reconhecimento de fala para o idioma \(language.rawValue, privacy: .public)")
 
         self.currentTask = rec.recognitionTask(with: request) { [weak self] result, error in
             guard let self = self else { return }
@@ -113,11 +122,13 @@ public final class SpeechRecognitionService: @unchecked Sendable {
                 onTranscriptionUpdate(transcription, isFinal)
 
                 if isFinal {
+                    Self.logger.info("Reconhecimento de fala finalizado com sucesso")
                     self.resetSession()
                 }
             }
 
             if let error = error {
+                Self.logger.error("Erro na tarefa de reconhecimento de fala: \(error.localizedDescription, privacy: .public)")
                 onError?(error)
                 self.resetSession()
             }
@@ -129,7 +140,10 @@ public final class SpeechRecognitionService: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        guard _isRecognizing, let request = currentRequest else { return }
+        guard _isRecognizing, let request = currentRequest else {
+            Self.logger.debug("Buffer ignorado: nenhuma sessão de reconhecimento ativa")
+            return
+        }
         request.append(buffer)
     }
 
@@ -138,7 +152,11 @@ public final class SpeechRecognitionService: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        guard _isRecognizing, let request = currentRequest else { return }
+        guard _isRecognizing, let request = currentRequest else {
+            Self.logger.debug("finishAudio ignorado: nenhuma sessão de reconhecimento ativa")
+            return
+        }
+        Self.logger.info("Finalizando fluxo de áudio da sessão de reconhecimento")
         request.endAudio()
     }
 
@@ -147,6 +165,9 @@ public final class SpeechRecognitionService: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
+        if _isRecognizing {
+            Self.logger.info("Cancelando sessão de reconhecimento de fala ativa")
+        }
         currentRequest?.endAudio()
         currentTask?.cancel()
         currentTask = nil

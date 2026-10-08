@@ -105,4 +105,23 @@ final class AudioCaptureServiceTests: XCTestCase {
 
         XCTAssertTrue(newAudioFiles.isEmpty, "Nenhum ficheiro de áudio pode ser escrito no disco durante a captação.")
     }
+
+    func testAudioCaptureErrorDescriptions() {
+        let err1 = AudioCaptureError.bufferAllocationFailed
+        XCTAssertNotNil(err1.errorDescription)
+        let err2 = AudioCaptureError.converterInitializationFailed
+        XCTAssertNotNil(err2.errorDescription)
+        let err3 = AudioCaptureError.conversionFailed("erro de teste")
+        XCTAssertTrue(err3.errorDescription?.contains("erro de teste") ?? false)
+    }
+
+    func testOnErrorCallbackProperty() {
+        let service = AudioCaptureService()
+        let errorBox = TestBox<Error>()
+        service.onError = { error in
+            errorBox.set(error)
+        }
+        service.onError?(AudioCaptureError.bufferAllocationFailed)
+        XCTAssertNotNil(errorBox.value)
+    }
 }

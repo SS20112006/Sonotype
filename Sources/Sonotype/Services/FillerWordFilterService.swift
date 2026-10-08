@@ -104,6 +104,7 @@ public final class FillerWordFilterService: Sendable {
 
     private func replaceRegex(pattern: String, in text: String, with template: String) -> String {
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            assertionFailure("Expressão regular inválida no filtro de hesitações: \(pattern)")
             return text
         }
         let range = NSRange(text.startIndex..<text.endIndex, in: text)

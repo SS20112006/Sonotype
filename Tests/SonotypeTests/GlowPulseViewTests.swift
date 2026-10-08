@@ -2,6 +2,7 @@ import XCTest
 import SwiftUI
 @testable import Sonotype
 
+@MainActor
 final class GlowPulseViewTests: XCTestCase {
     // MARK: - Cálculos de Escala da Aura (Estética C1)
 
@@ -56,9 +57,11 @@ final class GlowPulseViewTests: XCTestCase {
         XCTAssertEqual(view.amplitude, 0.4, accuracy: 0.001)
         XCTAssertFalse(view.isProcessing)
         XCTAssertEqual(view.tintColor, .red)
+        _ = view.body
 
         let processingView = GlowPulseView(amplitude: 0.0, isProcessing: true)
         XCTAssertTrue(processingView.isProcessing)
+        _ = processingView.body
     }
 
     @MainActor
@@ -74,5 +77,6 @@ final class GlowPulseViewTests: XCTestCase {
         XCTAssertEqual(pillView.state, .recording)
         XCTAssertEqual(pillView.amplitude, 0.6, accuracy: 0.001)
         XCTAssertEqual(pillView.config.languageBadge, "PT")
+        _ = pillView.body
     }
 }

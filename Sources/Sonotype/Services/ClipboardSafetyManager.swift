@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import os
 
 /// Modo de salvaguarda do clipboard durante a injeção de texto no cursor.
 public enum ClipboardSafetyMode: String, Sendable, CaseIterable {
@@ -35,6 +36,8 @@ public struct PasteboardSnapshot: Sendable, Equatable {
 /// Suporta o Modo A (manter texto transcrito) e o Modo B (restauração fiel do conteúdo anterior).
 @MainActor
 public final class ClipboardSafetyManager: Sendable {
+    private static let logger = Logger(subsystem: "com.sonotype.app", category: "ClipboardSafetyManager")
+
     public let pasteboard: NSPasteboard
 
     /// Inicializa o gestor com um pasteboard específico (padrão: `NSPasteboard.general`).
@@ -80,6 +83,7 @@ public final class ClipboardSafetyManager: Sendable {
         }
 
         pasteboard.writeObjects(newItems)
+        Self.logger.debug("Clipboard restaurado a partir de snapshot com \(snapshot.items.count) item(s)")
     }
 
     /// Define o texto no pasteboard como string simples (UTF-8).
@@ -105,13 +109,20 @@ public final class ClipboardSafetyManager: Sendable {
         let snapshot = (mode == .preservePrevious) ? captureSnapshot() : nil
         setText(text)
 
+        defer {
+            if let snapshot {
+                restore(snapshot: snapshot)
+            }
+        }
+
         try await action()
 
-        if let snapshot {
-            if restoreDelayNanoseconds > 0 {
-                try? await Task.sleep(nanoseconds: restoreDelayNanoseconds)
+        if snapshot != nil && restoreDelayNanoseconds > 0 {
+            do {
+                try await Task.sleep(nanoseconds: restoreDelayNanoseconds)
+            } catch {
+                Self.logger.warning("Atraso de restauração interrompido em withPreservedClipboard: \(error.localizedDescription, privacy: .public)")
             }
-            restore(snapshot: snapshot)
         }
     }
 }

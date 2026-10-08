@@ -7,18 +7,18 @@ final class ClipboardSafetyManagerTests: XCTestCase {
     private var pasteboard: NSPasteboard!
     private var manager: ClipboardSafetyManager!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         // Cria um pasteboard com nome único por teste para garantir isolamento absoluto
         pasteboard = NSPasteboard(name: .init("SonotypeTestPasteboard-\(UUID().uuidString)"))
         manager = ClipboardSafetyManager(pasteboard: pasteboard)
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         pasteboard.releaseGlobally()
         pasteboard = nil
         manager = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Modo A (pasteAndKeep)

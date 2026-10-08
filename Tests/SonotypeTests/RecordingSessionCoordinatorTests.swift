@@ -209,4 +209,26 @@ final class RecordingSessionCoordinatorTests: XCTestCase {
         XCTAssertEqual(mockSound.stopSoundCount, 1)
         XCTAssertFalse(silenceManager.isRunning)
     }
+
+    // MARK: - Ciclo de Tratamento de Erros
+
+    func testCoordinatorErrorHandlingLifecycle() {
+        let errorReceivedBox = TestBox<Error>()
+        coordinator.onError = { error in
+            errorReceivedBox.set(error)
+        }
+
+        // Inicia gravação
+        mockHotkey.simulateHotkeyPressed()
+        XCTAssertEqual(stateMachine.currentState, .recording)
+        XCTAssertTrue(silenceManager.isRunning)
+
+        // Simula erro durante a sessão
+        coordinator.handleError(AudioCaptureError.bufferAllocationFailed)
+
+        XCTAssertEqual(stateMachine.currentState, .idle)
+        XCTAssertNotNil(errorReceivedBox.value)
+        XCTAssertEqual(mockSound.cancelSoundCount, 1)
+        XCTAssertFalse(silenceManager.isRunning)
+    }
 }

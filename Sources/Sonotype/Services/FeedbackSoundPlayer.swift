@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import os
 
 /// Protocolo de abstração para emissão de feedback auditivo da aplicação.
 @MainActor
@@ -14,6 +15,8 @@ public protocol FeedbackSoundPlaying: Sendable {
 /// Emite sons sutis ao iniciar, parar e cancelar a gravação, cumprindo os princípios do Apple HIG.
 @MainActor
 public final class SystemFeedbackSoundPlayer: FeedbackSoundPlaying, Sendable {
+    private static let logger = Logger(subsystem: "com.sonotype.app", category: "FeedbackSoundPlayer")
+
     public var isEnabled: Bool
 
     public init(isEnabled: Bool = true) {
@@ -42,6 +45,7 @@ public final class SystemFeedbackSoundPlayer: FeedbackSoundPlaying, Sendable {
         if let sound = NSSound(named: NSSound.Name(name)) {
             sound.play()
         } else {
+            Self.logger.warning("Som de sistema '\(name, privacy: .public)' não encontrado. Recorrendo a NSSound.beep().")
             NSSound.beep()
         }
     }

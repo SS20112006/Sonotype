@@ -60,4 +60,15 @@ final class SpeechRecognitionServiceTests: XCTestCase {
         let finalCount = (try? fileManager.contentsOfDirectory(atPath: tempDir.path))?.count ?? 0
         XCTAssertEqual(initialCount, finalCount, "Zero ficheiros de áudio podem ser gravados no disco.")
     }
+
+    func testSpeechRecognitionErrorDescriptions() {
+        let err1 = SpeechRecognitionError.recognizerUnavailable(.portuguesePT)
+        XCTAssertNotNil(err1.errorDescription)
+        let err2 = SpeechRecognitionError.onDeviceRecognitionUnsupported(.englishUS)
+        XCTAssertNotNil(err2.errorDescription)
+        let err3 = SpeechRecognitionError.alreadyRecognizing
+        XCTAssertNotNil(err3.errorDescription)
+        let err4 = SpeechRecognitionError.noActiveSession
+        XCTAssertNotNil(err4.errorDescription)
+    }
 }

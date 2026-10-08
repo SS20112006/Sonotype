@@ -83,6 +83,9 @@ public struct FloatingPillHUDView: View {
                 .strokeBorder(.separator.opacity(0.35), lineWidth: 0.5)
         )
         .shadow(color: Color.black.opacity(0.18), radius: 14, x: 0, y: 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(statusMessage), \(config.languageBadge)")
+        .accessibilityAddTraits(.isStaticText)
     }
 
     private var dotColor: Color {

@@ -55,6 +55,7 @@ public struct GlowPulseView: View {
         }
         .frame(width: 24, height: 24)
         .animation(.spring(response: 0.25, dampingFraction: 0.65), value: amplitude)
+        .accessibilityHidden(true)
     }
 
     /// Calcula a escala da aura externa em função da amplitude vocal (1.0 a 2.4).

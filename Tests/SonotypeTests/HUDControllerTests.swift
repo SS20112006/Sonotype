@@ -22,11 +22,11 @@ private final class MockHotkeyForHUD: GlobalHotkeyMonitoring, Sendable {
         self.escapeAction = action
     }
 
-    func triggerHotkey() {
+    func simulateHotkeyPressed() {
         hotkeyAction?()
     }
 
-    func triggerEscape() {
+    func simulateEscapePressed() {
         escapeAction?()
     }
 }
@@ -138,7 +138,7 @@ final class HUDControllerTests: XCTestCase {
         controller.attach(to: coordinator)
 
         // 1. Inicia sessão via hotkey
-        mockHotkey.triggerHotkey()
+        mockHotkey.simulateHotkeyPressed()
 
         XCTAssertEqual(stateMachine.currentState, .recording)
         XCTAssertTrue(controller.viewModel.isVisible)
@@ -149,9 +149,71 @@ final class HUDControllerTests: XCTestCase {
         XCTAssertEqual(controller.viewModel.amplitude, 0.62, accuracy: 0.001)
 
         // 3. Cancela via Escape
-        mockHotkey.triggerEscape()
+        mockHotkey.simulateEscapePressed()
 
         XCTAssertEqual(stateMachine.currentState, .idle)
+        XCTAssertEqual(controller.viewModel.displayState, .cancelled)
+
+        coordinator.stop()
+    }
+
+    func testCoordinatorAttachmentPreservesExistingHandlers() async {
+        let mockHotkey = MockHotkeyForHUD()
+        let stateMachine = RecordingStateMachine(hotkeyMode: .toggle)
+        let silenceManager = SilenceTimeoutManager(timeoutDuration: 45.0)
+        let soundPlayer = MockFeedbackSoundPlayer()
+
+        let coordinator = RecordingSessionCoordinator(
+            stateMachine: stateMachine,
+            hotkeyManager: mockHotkey,
+            silenceManager: silenceManager,
+            soundPlayer: soundPlayer
+        )
+
+        var originalStartInvoked = false
+        var originalFinishInvoked = false
+        var originalCancelInvoked = false
+        var originalAmplitudeInvoked: Float?
+
+        coordinator.onStartRecording = {
+            originalStartInvoked = true
+        }
+        coordinator.onFinishRecording = { _ in
+            originalFinishInvoked = true
+        }
+        coordinator.onCancelRecording = {
+            originalCancelInvoked = true
+        }
+        coordinator.onAmplitudeChanged = { amp in
+            originalAmplitudeInvoked = amp
+        }
+
+        // Vincula HUD ao coordenador que já possuía handlers registados
+        controller.attach(to: coordinator)
+
+        // 1. Inicia sessão: HUD deve mostrar gravação e originalStart deve disparar
+        mockHotkey.simulateHotkeyPressed()
+        XCTAssertTrue(controller.viewModel.isVisible)
+        XCTAssertEqual(controller.viewModel.displayState, .recording)
+        XCTAssertTrue(originalStartInvoked)
+
+        // 2. Alimenta amplitude: HUD deve atualizar e originalAmplitude deve disparar
+        coordinator.feedAudioAmplitude(0.75)
+        XCTAssertEqual(controller.viewModel.amplitude, 0.75, accuracy: 0.001)
+        XCTAssertEqual(originalAmplitudeInvoked, 0.75)
+
+        // 3. Finaliza sessão via hotkey: originalFinish deve disparar
+        mockHotkey.simulateHotkeyPressed()
+        for _ in 0..<50 {
+            if originalFinishInvoked { break }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertTrue(originalFinishInvoked)
+
+        // 4. Inicia novamente e cancela via escape: originalCancel deve disparar
+        mockHotkey.simulateHotkeyPressed()
+        mockHotkey.simulateEscapePressed()
+        XCTAssertTrue(originalCancelInvoked)
         XCTAssertEqual(controller.viewModel.displayState, .cancelled)
 
         coordinator.stop()

@@ -55,7 +55,7 @@ public final class LanguageDetectorService: Sendable {
         if ptConfidence > enConfidence && ptConfidence >= 0.15 {
             return defaultLanguage.isPortuguese ? defaultLanguage : .portuguesePT
         } else if enConfidence > ptConfidence && enConfidence >= 0.15 {
-            return defaultLanguage.isEnglish ? defaultLanguage : .enUSDefault
+            return defaultLanguage.isEnglish ? defaultLanguage : .englishUS
         }
 
         if let dominant = recognizer.dominantLanguage {
@@ -81,11 +81,5 @@ public final class LanguageDetectorService: Sendable {
         let pt = hypotheses[.portuguese] ?? 0.0
         let en = hypotheses[.english] ?? 0.0
         return (portuguese: pt, english: en)
-    }
-}
-
-private extension SpeechLanguage {
-    static var enUSDefault: SpeechLanguage {
-        .englishUS
     }
 }
