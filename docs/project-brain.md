@@ -81,13 +81,12 @@ O plano completo de desenvolvimento de ponta a ponta encontra-se formalizado em 
 ---
 
 ## 5. Estado Atual & Backlog no Git
-- **Fase**: Tarefas 01 a 08 Concluídas e Verificadas com Sucesso (162 testes unitários e de integração a passar, 0 falhas).
+- **Fase**: Tarefas 01 a 09 Concluídas e Verificadas com Sucesso (180 testes unitários e de integração a passar, 0 falhas).
 - **Backlog Sincronizado no Git**:
   - Todas as 12 tarefas do roadmap estão rastreadas como Issues no GitHub ([`SS20112006/Sonotype`](https://github.com/SS20112006/Sonotype/issues)).
-  - **Issues Concluídas (#1 a #8)**: Tarefa 01 a 08 formalmente fechadas e validadas.
-  - **Issues Ativas no Backlog (#9 a #12)**:
-    - [#9: Tarefa 09: Dashboard com Barra Lateral](https://github.com/SS20112006/Sonotype/issues/9) — 🚀 **Trio Full-Stack Feature** (`apple-hig-specialist`, `fullstack-engineer`, `qa-security-auditor`, `devops-release`).
+  - **Issues Concluídas (#1 a #9)**: Tarefas 01 a 09 formalmente fechadas e validadas.
+  - **Issues Ativas no Backlog (#10 a #12)**:
     - [#10: Tarefa 10: Painel de Definições](https://github.com/SS20112006/Sonotype/issues/10) — 🎨 **Trio UI/UX & Native Desktop** (`apple-hig-specialist`, `fullstack-engineer`, `silent-failure-hunter`, `devops-release`).
     - [#11: Tarefa 11: Experiência de Onboarding](https://github.com/SS20112006/Sonotype/issues/11) — 🎨 **Trio UI/UX & Native Desktop** (`apple-hig-specialist`, `fullstack-engineer`, `qa-security-auditor`, `devops-release`).
     - [#12: Tarefa 12: Hardening & Packaging](https://github.com/SS20112006/Sonotype/issues/12) — 🏛️ **Trio Arquitetura, Performance & Dívida Técnica** (`qa-security-auditor`, `complexity-auditor`, `performance-engineer`, `silent-failure-hunter`, `devops-release`).
-- **Próximo Passo**: Iniciar a **Tarefa 09: Dashboard com Barra Lateral (Histórico & Dicionário)** ([Issue #9](https://github.com/SS20112006/Sonotype/issues/9)) através do 🚀 **Trio Full-Stack Feature**.
+- **Próximo Passo**: Iniciar a **Tarefa 10: Painel de Definições & Armazenamento de Preferências** ([Issue #10](https://github.com/SS20112006/Sonotype/issues/10)) através do 🎨 **Trio UI/UX & Native Desktop**.
