@@ -27,6 +27,7 @@ public final class PreferencesManager: ObservableObject, Sendable {
     public var onLanguageModeChanged: (@MainActor @Sendable (LanguageSelectionMode) -> Void)?
     public var onTriggerModeChanged: (@MainActor @Sendable (RecordingTriggerMode) -> Void)?
     public var onHUDFeedbackModeChanged: (@MainActor @Sendable (HUDFeedbackMode) -> Void)?
+    public var onOnboardingStatusChanged: (@MainActor @Sendable (Bool) -> Void)?
 
     // MARK: - Estado Reativo
 
@@ -146,6 +147,11 @@ public final class PreferencesManager: ObservableObject, Sendable {
         set { preferences.metricsVisibility = newValue }
     }
 
+    public var hasCompletedOnboarding: Bool {
+        get { preferences.hasCompletedOnboarding }
+        set { preferences.hasCompletedOnboarding = newValue }
+    }
+
     // MARK: - Emissão de Eventos de Alteração
 
     private func notifyChanges(oldValue: AppPreferences, newValue: AppPreferences) {
@@ -169,6 +175,9 @@ public final class PreferencesManager: ObservableObject, Sendable {
         }
         if oldValue.hudFeedbackMode != newValue.hudFeedbackMode {
             onHUDFeedbackModeChanged?(newValue.hudFeedbackMode)
+        }
+        if oldValue.hasCompletedOnboarding != newValue.hasCompletedOnboarding {
+            onOnboardingStatusChanged?(newValue.hasCompletedOnboarding)
         }
     }
 }

@@ -172,6 +172,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
     public var clipboardSafetyMode: ClipboardSafetyMode
     public var textInjectionStrategy: TextInjectionStrategy
     public var metricsVisibility: DashboardMetricsVisibility
+    public var hasCompletedOnboarding: Bool
 
     public init(
         launchAtLogin: Bool = false,
@@ -188,7 +189,8 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         autoFinalPeriodEnabled: Bool = false,
         clipboardSafetyMode: ClipboardSafetyMode = .pasteAndKeep,
         textInjectionStrategy: TextInjectionStrategy = .accessibilityWithFallback,
-        metricsVisibility: DashboardMetricsVisibility = DashboardMetricsVisibility()
+        metricsVisibility: DashboardMetricsVisibility = DashboardMetricsVisibility(),
+        hasCompletedOnboarding: Bool = false
     ) {
         self.launchAtLogin = launchAtLogin
         self.dockVisibilityMode = dockVisibilityMode
@@ -205,6 +207,7 @@ public struct AppPreferences: Codable, Equatable, Sendable {
         self.clipboardSafetyMode = clipboardSafetyMode
         self.textInjectionStrategy = textInjectionStrategy
         self.metricsVisibility = metricsVisibility
+        self.hasCompletedOnboarding = hasCompletedOnboarding
     }
 
     public static let `default` = AppPreferences()
@@ -217,5 +220,68 @@ public struct AppPreferences: Codable, Equatable, Sendable {
             capitalizationEnabled: autoCapitalizationEnabled,
             autoFinalPeriodEnabled: autoFinalPeriodEnabled
         )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case launchAtLogin
+        case dockVisibilityMode
+        case triggerMode
+        case globalHotkey
+        case silenceTimeoutSeconds
+        case soundFeedbackEnabled
+        case languageSelectionMode
+        case hudFeedbackMode
+        case oralCommandsEnabled
+        case fillerFilterEnabled
+        case autoCapitalizationEnabled
+        case autoFinalPeriodEnabled
+        case clipboardSafetyMode
+        case textInjectionStrategy
+        case metricsVisibility
+        case hasCompletedOnboarding
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(launchAtLogin, forKey: .launchAtLogin)
+        try container.encode(dockVisibilityMode, forKey: .dockVisibilityMode)
+        try container.encode(triggerMode, forKey: .triggerMode)
+        try container.encode(globalHotkey, forKey: .globalHotkey)
+        try container.encode(silenceTimeoutSeconds, forKey: .silenceTimeoutSeconds)
+        try container.encode(soundFeedbackEnabled, forKey: .soundFeedbackEnabled)
+        try container.encode(languageSelectionMode, forKey: .languageSelectionMode)
+        try container.encode(hudFeedbackMode, forKey: .hudFeedbackMode)
+        try container.encode(oralCommandsEnabled, forKey: .oralCommandsEnabled)
+        try container.encode(fillerFilterEnabled, forKey: .fillerFilterEnabled)
+        try container.encode(autoCapitalizationEnabled, forKey: .autoCapitalizationEnabled)
+        try container.encode(autoFinalPeriodEnabled, forKey: .autoFinalPeriodEnabled)
+        try container.encode(clipboardSafetyMode, forKey: .clipboardSafetyMode)
+        try container.encode(textInjectionStrategy, forKey: .textInjectionStrategy)
+        try container.encode(metricsVisibility, forKey: .metricsVisibility)
+        try container.encode(hasCompletedOnboarding, forKey: .hasCompletedOnboarding)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.launchAtLogin = try container.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? false
+        self.dockVisibilityMode = try container.decodeIfPresent(DockVisibilityMode.self, forKey: .dockVisibilityMode) ?? .dynamic
+        self.triggerMode = try container.decodeIfPresent(RecordingTriggerMode.self, forKey: .triggerMode) ?? .toggle
+        self.globalHotkey = try container.decodeIfPresent(GlobalHotkey.self, forKey: .globalHotkey) ?? .defaultToggle
+        if container.contains(.silenceTimeoutSeconds) {
+            self.silenceTimeoutSeconds = try container.decodeIfPresent(Double.self, forKey: .silenceTimeoutSeconds)
+        } else {
+            self.silenceTimeoutSeconds = 45.0
+        }
+        self.soundFeedbackEnabled = try container.decodeIfPresent(Bool.self, forKey: .soundFeedbackEnabled) ?? true
+        self.languageSelectionMode = try container.decodeIfPresent(LanguageSelectionMode.self, forKey: .languageSelectionMode) ?? .autoDetect
+        self.hudFeedbackMode = try container.decodeIfPresent(HUDFeedbackMode.self, forKey: .hudFeedbackMode) ?? .waveformOnly
+        self.oralCommandsEnabled = try container.decodeIfPresent(Bool.self, forKey: .oralCommandsEnabled) ?? true
+        self.fillerFilterEnabled = try container.decodeIfPresent(Bool.self, forKey: .fillerFilterEnabled) ?? true
+        self.autoCapitalizationEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoCapitalizationEnabled) ?? true
+        self.autoFinalPeriodEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoFinalPeriodEnabled) ?? false
+        self.clipboardSafetyMode = try container.decodeIfPresent(ClipboardSafetyMode.self, forKey: .clipboardSafetyMode) ?? .pasteAndKeep
+        self.textInjectionStrategy = try container.decodeIfPresent(TextInjectionStrategy.self, forKey: .textInjectionStrategy) ?? .accessibilityWithFallback
+        self.metricsVisibility = try container.decodeIfPresent(DashboardMetricsVisibility.self, forKey: .metricsVisibility) ?? DashboardMetricsVisibility()
+        self.hasCompletedOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
     }
 }

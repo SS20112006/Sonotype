@@ -19,7 +19,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
     public private(set) var languageDetector: LanguageDetectorService?
     public private(set) var postProcessor: TextPostProcessor?
     public private(set) var injectionService: TextInjectionService?
+    public private(set) var permissionsService: PermissionsServiceProtocol?
     public private(set) var settingsWindow: NSWindow?
+    public private(set) var onboardingWindow: NSWindow?
 
     public var activeLanguage: SpeechLanguage = .portuguesePT
     public var currentTranscription: String = ""
@@ -27,6 +29,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         setupCoreServices()
+
+        // Verificação do estado do Onboarding no primeiro arranque
+        if let prefs = preferencesManager?.preferences, !prefs.hasCompletedOnboarding {
+            openOnboardingWindow()
+        }
     }
 
     public func setupCoreServices(
@@ -40,9 +47,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         speechService: SpeechRecognitionService = SpeechRecognitionService(),
         languageDetector: LanguageDetectorService = LanguageDetectorService(),
         postProcessor: TextPostProcessor = TextPostProcessor(),
-        injectionService: TextInjectionService = TextInjectionService()
+        injectionService: TextInjectionService = TextInjectionService(),
+        permissionsService: PermissionsServiceProtocol = PermissionsService()
     ) {
         self.preferencesManager = preferencesManager
+        self.permissionsService = permissionsService
 
         // Inicializar ou sincronizar dockCoordinator com o modo das preferências
         let finalDockCoordinator: DockVisibilityCoordinator
@@ -383,13 +392,95 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
     public func openDashboardWindow() {
         guard let app = NSApp else { return }
         app.activate(ignoringOtherApps: true)
-        if let window = app.windows.first(where: { DockVisibilityCoordinator.isRegularWindow($0) }) {
+        if let window = app.windows.first(where: { DockVisibilityCoordinator.isRegularWindow($0) && $0 != self.onboardingWindow }) {
             if window.isMiniaturized {
                 window.deminiaturize(nil)
             }
             window.makeKeyAndOrderFront(nil)
             window.orderFrontRegardless()
         }
+        dockCoordinator?.syncWithOpenWindows()
+    }
+
+    /// Abre a janela dedicada do Onboarding guiado no primeiro arranque.
+    public func openOnboardingWindow() {
+        guard let app = NSApp else { return }
+        app.activate(ignoringOtherApps: true)
+
+        if let window = onboardingWindow, window.isVisible {
+            if window.isMiniaturized {
+                window.deminiaturize(nil)
+            }
+            window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
+            dockCoordinator?.syncWithOpenWindows()
+            return
+        }
+
+        let permService = self.permissionsService ?? PermissionsService()
+        let prefManager = self.preferencesManager ?? .shared
+        let viewModel = OnboardingViewModel(
+            permissionsService: permService,
+            preferencesManager: prefManager
+        )
+
+        // Conectar teste de fala do playground ao speechService / coordinator se disponíveis
+        viewModel.onStartTestSpeech = { [weak self, weak viewModel] in
+            guard let self = self, let speechService = self.speechService, let audioCapture = self.audioCaptureService else { return }
+            do {
+                try speechService.startRecognition(
+                    language: self.activeLanguage,
+                    onTranscriptionUpdate: { [weak viewModel] text, _ in
+                        Task { @MainActor [weak viewModel] in
+                            viewModel?.playgroundText = text
+                        }
+                    },
+                    onError: { [weak viewModel] _ in
+                        Task { @MainActor [weak viewModel] in
+                            viewModel?.isTestingSpeech = false
+                        }
+                    }
+                )
+                audioCapture.onBufferCaptured = { [weak speechService] buffer in
+                    speechService?.appendBuffer(buffer)
+                }
+                try audioCapture.startCapture()
+            } catch {
+                viewModel?.isTestingSpeech = false
+            }
+        }
+
+        viewModel.onStopTestSpeech = { [weak self] in
+            guard let self = self else { return }
+            self.audioCaptureService?.stopCapture()
+            self.speechService?.finishAudio()
+        }
+
+        viewModel.onDismiss = { [weak self] in
+            self?.closeOnboardingWindow()
+            self?.openDashboardWindow()
+        }
+
+        let onboardingView = OnboardingView(viewModel: viewModel)
+        let hostingController = NSHostingController(rootView: onboardingView)
+
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "Bem-vindo ao Sonotype"
+        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.setContentSize(NSSize(width: 580, height: 500))
+        window.center()
+        window.isReleasedWhenClosed = false
+        self.onboardingWindow = window
+
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+        dockCoordinator?.syncWithOpenWindows()
+    }
+
+    /// Fecha a janela de onboarding.
+    public func closeOnboardingWindow() {
+        onboardingWindow?.close()
+        onboardingWindow = nil
         dockCoordinator?.syncWithOpenWindows()
     }
 

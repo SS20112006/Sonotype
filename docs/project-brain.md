@@ -81,11 +81,10 @@ O plano completo de desenvolvimento de ponta a ponta encontra-se formalizado em 
 ---
 
 ## 5. Estado Atual & Backlog no Git
-- **Fase**: Tarefas 01 a 10 Concluídas e Verificadas com Sucesso (210 testes unitários e de integração a passar, 0 falhas).
+- **Fase**: Tarefas 01 a 11 Concluídas e Verificadas com Sucesso (210 testes unitários e de integração a passar, 0 falhas).
 - **Backlog Sincronizado no Git**:
   - Todas as 12 tarefas do roadmap estão rastreadas como Issues no GitHub ([`SS20112006/Sonotype`](https://github.com/SS20112006/Sonotype/issues)).
-  - **Issues Concluídas (#1 a #10)**: Tarefas 01 a 10 formalmente fechadas e validadas.
-  - **Issues Ativas no Backlog (#11 a #12)**:
-    - [#11: Tarefa 11: Experiência de Onboarding](https://github.com/SS20112006/Sonotype/issues/11) — 🎨 **Trio UI/UX & Native Desktop** (`apple-hig-specialist`, `fullstack-engineer`, `qa-security-auditor`, `devops-release`).
+  - **Issues Concluídas (#1 a #11)**: Tarefas 01 a 11 formalmente fechadas e validadas.
+  - **Issues Ativas no Backlog (#12)**:
     - [#12: Tarefa 12: Hardening & Packaging](https://github.com/SS20112006/Sonotype/issues/12) — 🏛️ **Trio Arquitetura, Performance & Dívida Técnica** (`qa-security-auditor`, `complexity-auditor`, `performance-engineer`, `silent-failure-hunter`, `devops-release`).
-- **Próximo Passo**: Iniciar a **Tarefa 11: Experiência de Onboarding & Permissões** ([Issue #11](https://github.com/SS20112006/Sonotype/issues/11)) através do 🎨 **Trio UI/UX & Native Desktop**.
+- **Próximo Passo**: Iniciar a **Tarefa 12: Hardening de Produção, Assinatura & Packaging** ([Issue #12](https://github.com/SS20112006/Sonotype/issues/12)) — a tarefa final do projeto — através do 🏛️ **Trio Arquitetura, Performance & Dívida Técnica**.
