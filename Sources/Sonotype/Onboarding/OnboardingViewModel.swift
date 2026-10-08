@@ -102,6 +102,22 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
         permissionsService.stopPolling()
     }
 
+    /// Atualiza imediatamente os estados das permissões de sistema consultando o serviço.
+    public func refreshStatuses() {
+        permissionsService.refreshStatuses()
+        objectWillChange.send()
+    }
+
+    /// Força o avanço direto para o playground sem exigir confirmação do TCC/SO.
+    public func forceAdvanceToPlayground() {
+        currentStep = .playground
+    }
+
+    /// Permite a transição direta para qualquer passo específico.
+    public func goToStep(_ step: OnboardingStep) {
+        currentStep = step
+    }
+
     // MARK: - Validação de Navegação por Passo
 
     /// Indica se o utilizador pode avançar a partir do passo atual.

@@ -203,6 +203,50 @@ final class PermissionsAndOnboardingTests: XCTestCase {
         XCTAssertEqual(viewModel.currentStep, .playground)
     }
 
+    func testOnboardingViewModelForceAdvanceToPlayground() {
+        let mockPermissions = MockPermissionsService()
+        let manager = PreferencesManager(userDefaults: isolatedDefaults)
+        let viewModel = OnboardingViewModel(
+            permissionsService: mockPermissions,
+            preferencesManager: manager
+        )
+
+        XCTAssertEqual(viewModel.currentStep, .microphone)
+        viewModel.forceAdvanceToPlayground()
+        XCTAssertEqual(viewModel.currentStep, .playground)
+        XCTAssertTrue(viewModel.canAdvance)
+    }
+
+    func testOnboardingViewModelRefreshStatuses() {
+        let mockPermissions = MockPermissionsService()
+        let manager = PreferencesManager(userDefaults: isolatedDefaults)
+        let viewModel = OnboardingViewModel(
+            permissionsService: mockPermissions,
+            preferencesManager: manager
+        )
+
+        XCTAssertEqual(mockPermissions.refreshStatusesCallCount, 0)
+        viewModel.refreshStatuses()
+        XCTAssertEqual(mockPermissions.refreshStatusesCallCount, 1)
+    }
+
+    func testOnboardingViewModelGoToStep() {
+        let mockPermissions = MockPermissionsService()
+        let manager = PreferencesManager(userDefaults: isolatedDefaults)
+        let viewModel = OnboardingViewModel(
+            permissionsService: mockPermissions,
+            preferencesManager: manager
+        )
+
+        XCTAssertEqual(viewModel.currentStep, .microphone)
+        viewModel.goToStep(.accessibility)
+        XCTAssertEqual(viewModel.currentStep, .accessibility)
+        viewModel.goToStep(.playground)
+        XCTAssertEqual(viewModel.currentStep, .playground)
+        viewModel.goToStep(.microphone)
+        XCTAssertEqual(viewModel.currentStep, .microphone)
+    }
+
     func testOnboardingPlaygroundSpeechTestingToggles() {
         let mockPermissions = MockPermissionsService()
         let manager = PreferencesManager(userDefaults: isolatedDefaults)

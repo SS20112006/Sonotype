@@ -54,7 +54,7 @@ public struct OnboardingView: View {
                 .padding(.horizontal, 32)
                 .padding(.bottom, 24)
         }
-        .frame(width: 580, height: 500)
+        .frame(width: 580, height: 520)
         .background(.regularMaterial)
         .onAppear {
             viewModel.startPolling()
@@ -69,33 +69,42 @@ public struct OnboardingView: View {
     private var stepIndicatorHeader: some View {
         HStack(spacing: 16) {
             ForEach(OnboardingStep.allCases, id: \.self) { step in
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(stepIndicatorColor(for: step))
-                        .frame(width: 24, height: 24)
-                        .overlay(
-                            Group {
-                                if step < viewModel.currentStep {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(Color.white)
-                                } else {
-                                    Text("\(step.rawValue)")
-                                        .font(.system(size: 12, weight: .bold))
-                                        .foregroundStyle(step == viewModel.currentStep ? Color.white : Color.primary.opacity(0.75))
+                Button {
+                    viewModel.goToStep(step)
+                } label: {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(stepIndicatorColor(for: step))
+                            .frame(width: 24, height: 24)
+                            .overlay(
+                                Group {
+                                    if step < viewModel.currentStep {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundStyle(Color.white)
+                                    } else {
+                                        Text("\(step.rawValue)")
+                                            .font(.system(size: 12, weight: .bold))
+                                            .foregroundStyle(step == viewModel.currentStep ? Color.white : Color.primary.opacity(0.75))
+                                    }
                                 }
-                            }
-                        )
-                        .accessibilityHidden(true)
+                            )
+                            .accessibilityHidden(true)
 
-                    Text(step.title)
-                        .font(.system(size: 14, weight: step == viewModel.currentStep ? .semibold : .regular))
-                        .tracking(-0.15) // SF Pro Text tracking
-                        .foregroundStyle(step == viewModel.currentStep ? Color.primary : Color.secondary)
+                        Text(step.title)
+                            .font(.system(size: 14, weight: step == viewModel.currentStep ? .semibold : .regular))
+                            .tracking(-0.15) // SF Pro Text tracking
+                            .foregroundStyle(step == viewModel.currentStep ? Color.primary : Color.secondary)
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("Passo \(step.rawValue): \(step.title)")
                 .accessibilityValue(stepStatusDescription(for: step))
+                .accessibilityHint("Clique para navegar para o passo \(step.title)")
+                .sensoryFeedback(.selection, trigger: viewModel.currentStep)
 
                 if step != .playground {
                     Rectangle()
@@ -189,11 +198,11 @@ public struct OnboardingView: View {
     // MARK: - Passo 2: Acessibilidade
 
     private var accessibilityStepView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             Image(systemName: "accessibility.fill")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 72, height: 72)
+                .frame(width: 56, height: 56)
                 .foregroundStyle(viewModel.permissionsService.isAccessibilityAuthorized ? Color.green : Color.accentColor)
                 .accessibilityHidden(true)
 
@@ -209,36 +218,82 @@ public struct OnboardingView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 16) {
-                Button {
-                    viewModel.requestAccessibilityAccess()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: viewModel.permissionsService.isAccessibilityAuthorized ? "checkmark.circle.fill" : "lock.open.fill")
-                        Text(viewModel.permissionsService.isAccessibilityAuthorized ? "Autorizado" : "Solicitar Acesso")
-                            .font(.system(size: 13, weight: .medium))
-                            .tracking(-0.08)
-                    }
-                    .frame(minWidth: 160, minHeight: 44) // Target >= 44pt
+            if viewModel.permissionsService.isAccessibilityAuthorized {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color.green)
+                    Text("Acessibilidade Autorizada")
+                        .font(.system(size: 13, weight: .medium))
+                        .tracking(-0.08)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(viewModel.permissionsService.isAccessibilityAuthorized ? .green : .accentColor)
-                .disabled(viewModel.permissionsService.isAccessibilityAuthorized)
-                .sensoryFeedback(.success, trigger: viewModel.permissionsService.isAccessibilityAuthorized)
+                .frame(minWidth: 160, minHeight: 44)
+                .padding(.top, 4)
+            } else {
+                HStack(spacing: 12) {
+                    Button {
+                        viewModel.requestAccessibilityAccess()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "lock.open.fill")
+                            Text("Solicitar Acesso")
+                                .font(.system(size: 13, weight: .medium))
+                                .tracking(-0.08)
+                        }
+                        .frame(minWidth: 130, minHeight: 44) // Target >= 44pt
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.accentColor)
 
-                if !viewModel.permissionsService.isAccessibilityAuthorized {
                     Button {
                         viewModel.openSystemSettings(for: .accessibility)
                     } label: {
                         Text("Abrir Definições")
                             .font(.system(size: 13, weight: .medium))
                             .tracking(-0.08)
-                            .frame(minWidth: 140, minHeight: 44) // Target >= 44pt
+                            .frame(minWidth: 120, minHeight: 44) // Target >= 44pt
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        viewModel.refreshStatuses()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "arrow.clockwise")
+                            Text("Verificar Novamente")
+                                .font(.system(size: 13, weight: .medium))
+                                .tracking(-0.08)
+                        }
+                        .frame(minWidth: 140, minHeight: 44) // Target >= 44pt
                     }
                     .buttonStyle(.bordered)
                 }
+                .sensoryFeedback(.selection, trigger: viewModel.permissionsService.isAccessibilityAuthorized)
+
+                VStack(spacing: 8) {
+                    Text("Se já ativou nas Definições do Sistema mas o macOS ainda não atualizou a permissão (comportamento típico em apps de desenvolvimento), pode clicar em 'Continuar mesmo assim' ou 'Ignorar temporariamente'.")
+                        .font(.system(size: 11, weight: .regular))
+                        .tracking(-0.1)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 16)
+
+                    Button {
+                        viewModel.forceAdvanceToPlayground()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.forward.circle")
+                            Text("Continuar mesmo assim")
+                                .font(.system(size: 13, weight: .medium))
+                                .tracking(-0.08)
+                        }
+                        .frame(minWidth: 180, minHeight: 44) // Target >= 44pt
+                    }
+                    .buttonStyle(.bordered)
+                    .sensoryFeedback(.impact, trigger: viewModel.currentStep)
+                }
+                .padding(.top, 4)
             }
-            .padding(.top, 8)
         }
     }
 
@@ -327,6 +382,23 @@ public struct OnboardingView: View {
             }
 
             Spacer()
+
+            if viewModel.currentStep == .accessibility && !viewModel.canAdvance {
+                Button {
+                    viewModel.forceAdvanceToPlayground()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Avançar mesmo assim")
+                            .font(.system(size: 13, weight: .regular))
+                            .tracking(-0.08)
+                        Image(systemName: "chevron.forward")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .frame(minWidth: 140, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+                .sensoryFeedback(.impact, trigger: viewModel.currentStep)
+            }
 
             Button {
                 viewModel.nextStep()

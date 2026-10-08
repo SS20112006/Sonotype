@@ -88,3 +88,9 @@ O plano completo de desenvolvimento de ponta a ponta encontra-se formalizado em 
   - **Issues Ativas no Backlog (#12)**:
     - [#12: Tarefa 12: Hardening & Packaging](https://github.com/SS20112006/Sonotype/issues/12) — 🏛️ **Trio Arquitetura, Performance & Dívida Técnica** (`qa-security-auditor`, `complexity-auditor`, `performance-engineer`, `silent-failure-hunter`, `devops-release`).
 - **Próximo Passo**: Iniciar a **Tarefa 12: Hardening de Produção, Assinatura & Packaging** ([Issue #12](https://github.com/SS20112006/Sonotype/issues/12)) — a tarefa final do projeto — através do 🏛️ **Trio Arquitetura, Performance & Dívida Técnica**.
+
+---
+
+## 6. Backlog Futuro (Roadmap v2.0)
+- **Voice Snippets & Prompt Macros**: Expansão de texto e templates longos por comando vocal (ex: *"prompt próxima tarefa"* -> texto pré-configurado). Especificação formal detalhada em [`docs/roadmap/v2-voice-snippets-macros.md`](roadmap/v2-voice-snippets-macros.md).
+

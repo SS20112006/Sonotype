@@ -517,7 +517,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Bem-vindo ao Sonotype"
         window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 580, height: 500))
+        window.setContentSize(NSSize(width: 580, height: 520))
         window.center()
         window.isReleasedWhenClosed = false
         self.onboardingWindow = window
