@@ -3,7 +3,7 @@ import Foundation
 import os
 
 /// Modo de salvaguarda do clipboard durante a injeção de texto no cursor.
-public enum ClipboardSafetyMode: String, Sendable, CaseIterable {
+public enum ClipboardSafetyMode: String, Sendable, CaseIterable, Codable {
     /// Modo A (Padrão): Cola no cursor e preserva uma cópia do texto transcrito no Clipboard (Cmd+V).
     /// Garante que o utilizador nunca perde o texto mesmo se a janela ativa mudar.
     case pasteAndKeep

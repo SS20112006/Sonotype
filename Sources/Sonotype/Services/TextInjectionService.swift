@@ -14,7 +14,7 @@ public enum TextInjectionMethod: String, Sendable, Equatable {
 }
 
 /// Estratégia de injeção preferida.
-public enum TextInjectionStrategy: String, Sendable, CaseIterable {
+public enum TextInjectionStrategy: String, Sendable, CaseIterable, Codable {
     /// Tenta AXUIElement primeiro; se o elemento não suportar ou falhar, recorre a CGEvent.
     case accessibilityWithFallback
     /// Força unicamente injeção por Acessibilidade (AXUIElement).

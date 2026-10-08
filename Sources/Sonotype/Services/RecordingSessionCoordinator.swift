@@ -9,9 +9,9 @@ public final class RecordingSessionCoordinator: Sendable {
     private static let logger = Logger(subsystem: "com.sonotype.app", category: "RecordingSessionCoordinator")
 
     public let stateMachine: RecordingStateMachine
-    public let hotkeyManager: any GlobalHotkeyMonitoring
+    public var hotkeyManager: any GlobalHotkeyMonitoring
     public let silenceManager: SilenceTimeoutManager
-    public let soundPlayer: any FeedbackSoundPlaying
+    public var soundPlayer: any FeedbackSoundPlaying
 
     /// Callback disparado quando uma nova gravação é iniciada.
     public var onStartRecording: (@MainActor @Sendable () -> Void)?
@@ -64,6 +64,16 @@ public final class RecordingSessionCoordinator: Sendable {
     public func start() {
         Self.logger.info("Iniciando monitorização de atalhos globais")
         hotkeyManager.startMonitoring()
+    }
+
+    /// Atualiza o estado de ativação do feedback sonoro.
+    public func setSoundEnabled(_ enabled: Bool) {
+        soundPlayer.isEnabled = enabled
+    }
+
+    /// Atualiza a combinação do atalho global de teclado.
+    public func setHotkey(_ hotkey: GlobalHotkey) {
+        hotkeyManager.currentHotkey = hotkey
     }
 
     /// Interrompe o monitoramento de atalhos e cancela qualquer sessão ativa.

@@ -7,9 +7,11 @@ import SwiftUI
 /// alvos interativos >= 44pt e contraste WCAG 2.1 AA).
 public struct DashboardWindowView: View {
     @Bindable public var viewModel: DashboardViewModel
+    public var onOpenSettings: (() -> Void)?
 
-    public init(viewModel: DashboardViewModel) {
+    public init(viewModel: DashboardViewModel, onOpenSettings: (() -> Void)? = nil) {
         self.viewModel = viewModel
+        self.onOpenSettings = onOpenSettings
     }
 
     public var body: some View {
@@ -248,6 +250,30 @@ public struct DashboardWindowView: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Atalho de ditado: Option + Espaço")
+
+            // Botão de Atalho Rápido para Definições
+            Button {
+                onOpenSettings?()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 11, weight: .medium))
+                    Text("Definições")
+                        .font(.system(size: 11, weight: .medium, design: .default)) // SF Pro Text <= 19pt
+                        .tracking(0.06)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .strokeBorder(.separator, lineWidth: 0.5)
+                )
+            }
+            .buttonStyle(.plain)
+            .help("Abrir Definições do Sonotype (⌘,)")
+            .accessibilityLabel("Abrir Definições")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)

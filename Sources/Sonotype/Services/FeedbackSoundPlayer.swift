@@ -4,7 +4,7 @@ import os
 
 /// Protocolo de abstração para emissão de feedback auditivo da aplicação.
 @MainActor
-public protocol FeedbackSoundPlaying: Sendable {
+public protocol FeedbackSoundPlaying: AnyObject, Sendable {
     var isEnabled: Bool { get set }
     func playStartSound()
     func playStopSound()
