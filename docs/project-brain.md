@@ -80,6 +80,14 @@ O plano completo de desenvolvimento de ponta a ponta encontra-se formalizado em 
 
 ---
 
-## 5. Estado Atual
-- **Fase**: Tarefa 06 Concluída com Sucesso (Pílula Flutuante HUD com Estética C1 Glow Pulse implementada: `HUDPanel` como `NSPanel` flutuante sem moldura e não-ativador de foco sobre `.regularMaterial` adaptativo Apple HIG; `GlowPulseView` com ponto vibrante e aura pulsante reativa à amplitude vocal; `FloatingPillHUDView` com tipografia SF Pro Text <= 19pt, badges de idioma e conformidade WCAG AA; e `HUDController` orquestrando animações spring fluidas `.spring()` e vinculação ao `RecordingSessionCoordinator`).
-- **Próximo Passo**: Abrir uma nova conversa para iniciar a **Tarefa 07: Menu Bar Extra & Modo Híbrido da Dock** (Ícone na barra de menus, popover rápido com atalhos/status, e coordenação de visibilidade dinâmica da Dock).
+## 5. Estado Atual & Backlog no Git
+- **Fase**: Tarefas 01 a 08 Concluídas e Verificadas com Sucesso (162 testes unitários e de integração a passar, 0 falhas).
+- **Backlog Sincronizado no Git**:
+  - Todas as 12 tarefas do roadmap estão rastreadas como Issues no GitHub ([`SS20112006/Sonotype`](https://github.com/SS20112006/Sonotype/issues)).
+  - **Issues Concluídas (#1 a #8)**: Tarefa 01 a 08 formalmente fechadas e validadas.
+  - **Issues Ativas no Backlog (#9 a #12)**:
+    - [#9: Tarefa 09: Dashboard com Barra Lateral](https://github.com/SS20112006/Sonotype/issues/9) — 🚀 **Trio Full-Stack Feature** (`apple-hig-specialist`, `fullstack-engineer`, `qa-security-auditor`, `devops-release`).
+    - [#10: Tarefa 10: Painel de Definições](https://github.com/SS20112006/Sonotype/issues/10) — 🎨 **Trio UI/UX & Native Desktop** (`apple-hig-specialist`, `fullstack-engineer`, `silent-failure-hunter`, `devops-release`).
+    - [#11: Tarefa 11: Experiência de Onboarding](https://github.com/SS20112006/Sonotype/issues/11) — 🎨 **Trio UI/UX & Native Desktop** (`apple-hig-specialist`, `fullstack-engineer`, `qa-security-auditor`, `devops-release`).
+    - [#12: Tarefa 12: Hardening & Packaging](https://github.com/SS20112006/Sonotype/issues/12) — 🏛️ **Trio Arquitetura, Performance & Dívida Técnica** (`qa-security-auditor`, `complexity-auditor`, `performance-engineer`, `silent-failure-hunter`, `devops-release`).
+- **Próximo Passo**: Iniciar a **Tarefa 09: Dashboard com Barra Lateral (Histórico & Dicionário)** ([Issue #9](https://github.com/SS20112006/Sonotype/issues/9)) através do 🚀 **Trio Full-Stack Feature**.
