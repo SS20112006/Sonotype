@@ -56,6 +56,8 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
     public var onStartTestSpeech: (@MainActor @Sendable () -> Void)?
     public var onStopTestSpeech: (@MainActor @Sendable () -> Void)?
 
+    private var cancellables = Set<AnyCancellable>()
+
     public init(
         permissionsService: PermissionsServiceProtocol = PermissionsService(),
         preferencesManager: PreferencesManager = .shared,
@@ -64,6 +66,40 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
         self.permissionsService = permissionsService
         self.preferencesManager = preferencesManager
         self.bypassPermissionsForTesting = bypassPermissionsForTesting
+
+        setupObservers()
+    }
+
+    private func setupObservers() {
+        // Escuta quando a aplicação regressa ao primeiro plano para atualizar imediatamente as permissões
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                self.permissionsService.refreshStatuses()
+                self.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+
+        // Se o serviço de permissões for um ObservableObject, propaga mudanças para a view atualizar a UI
+        if let permissionsObservable = permissionsService as? PermissionsService {
+            permissionsObservable.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in
+                    self?.objectWillChange.send()
+                }
+                .store(in: &cancellables)
+        }
+    }
+
+    /// Inicia a monitorização periódica das permissões (ex: ao exibir o ecrã de Onboarding).
+    public func startPolling() {
+        permissionsService.startPolling(interval: 0.5)
+    }
+
+    /// Interrompe a monitorização periódica das permissões (ex: ao ocultar o ecrã de Onboarding).
+    public func stopPolling() {
+        permissionsService.stopPolling()
     }
 
     // MARK: - Validação de Navegação por Passo

@@ -131,6 +131,7 @@ final class AppDelegatePipelineTests: XCTestCase {
     private var mockKeystroke: MockKeystrokeSimulator!
     private var testPasteboard: NSPasteboard!
     private var injectionService: TextInjectionService!
+    private var mockPermissions: MockPermissionsService!
 
     override func setUp() async throws {
         try await super.setUp()
@@ -170,6 +171,10 @@ final class AppDelegatePipelineTests: XCTestCase {
             clipboardManager: clipboard
         )
 
+        mockPermissions = MockPermissionsService()
+        mockPermissions.microphoneStatus = .authorized
+        mockPermissions.speechStatus = .authorized
+
         appDelegate = AppDelegate()
         appDelegate.setupCoreServices(
             coordinator: coordinator,
@@ -181,7 +186,8 @@ final class AppDelegatePipelineTests: XCTestCase {
             speechService: mockSpeechService,
             languageDetector: languageDetector,
             postProcessor: postProcessor,
-            injectionService: injectionService
+            injectionService: injectionService,
+            permissionsService: mockPermissions
         )
     }
 
@@ -207,6 +213,7 @@ final class AppDelegatePipelineTests: XCTestCase {
         mockKeystroke = nil
         testPasteboard = nil
         injectionService = nil
+        mockPermissions = nil
 
         try await super.tearDown()
     }
@@ -278,6 +285,32 @@ final class AppDelegatePipelineTests: XCTestCase {
         coordinator.handleError(SpeechRecognitionError.onDeviceRecognitionUnsupported(.portuguesePT))
         XCTAssertEqual(hudController.viewModel.displayState, .cancelled)
         XCTAssertEqual(hudController.viewModel.configuration.cancelledTitle, "Voz offline indisponível")
+    }
+
+    func testStartRecordingWithUnauthorizedMicrophoneCancelsSession() {
+        mockPermissions.microphoneStatus = .denied
+
+        mockHotkey.simulateHotkeyPressed()
+
+        XCTAssertEqual(coordinator.stateMachine.currentState, .idle)
+        XCTAssertFalse(mockAudioService.startCaptureCalled)
+        XCTAssertEqual(hudController.viewModel.displayState, .cancelled)
+        XCTAssertEqual(hudController.viewModel.configuration.cancelledTitle, "Sem microfone")
+        XCTAssertEqual(mockPermissions.openSystemSettingsCallCount, 1)
+        XCTAssertEqual(mockPermissions.lastOpenedSettingsPane, .microphone)
+    }
+
+    func testStartRecordingWithNotDeterminedSpeechCancelsSession() {
+        mockPermissions.speechStatus = .notDetermined
+
+        mockHotkey.simulateHotkeyPressed()
+
+        XCTAssertEqual(coordinator.stateMachine.currentState, .idle)
+        XCTAssertFalse(mockSpeechService.startRecognitionCalled)
+        XCTAssertEqual(hudController.viewModel.displayState, .cancelled)
+        XCTAssertEqual(hudController.viewModel.configuration.cancelledTitle, "Sem permissão de fala")
+        XCTAssertEqual(mockPermissions.openSystemSettingsCallCount, 1)
+        XCTAssertEqual(mockPermissions.lastOpenedSettingsPane, .speechRecognition)
     }
 
     func testStartRecordingAudioCaptureServiceErrorHandled() {
@@ -425,6 +458,10 @@ final class AppDelegatePipelineTests: XCTestCase {
 
         let customMenuBar = MenuBarExtraManager()
         let customDelegate = AppDelegate()
+        let authorizedPermissions = MockPermissionsService()
+        authorizedPermissions.microphoneStatus = .authorized
+        authorizedPermissions.speechStatus = .authorized
+
         customDelegate.setupCoreServices(
             coordinator: customCoordinator,
             hudController: HUDController(),
@@ -435,7 +472,8 @@ final class AppDelegatePipelineTests: XCTestCase {
             speechService: MockSpeechRecognitionService(),
             languageDetector: LanguageDetectorService(),
             postProcessor: TextPostProcessor(),
-            injectionService: injectionService
+            injectionService: injectionService,
+            permissionsService: authorizedPermissions
         )
 
         // 1. Inicia gravação

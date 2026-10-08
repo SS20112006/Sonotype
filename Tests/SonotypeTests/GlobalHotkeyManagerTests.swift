@@ -63,6 +63,18 @@ final class GlobalHotkeyManagerTests: XCTestCase {
         XCTAssertFalse(hotkey.matches(eventKeyCode: 49, eventModifiers: [.option, .command]))
     }
 
+    func testHotkeyMatchingWithDeviceDependentFlags() {
+        let hotkey = GlobalHotkey.defaultToggle
+
+        // Simula evento com flag Option e flag dependente do dispositivo físico (ex: 0x20 correspondente a NX_DEVICELALTKEYMASK)
+        let deviceDependentOption = NSEvent.ModifierFlags(rawValue: NSEvent.ModifierFlags.option.rawValue | 0x20)
+        XCTAssertTrue(hotkey.matches(eventKeyCode: 49, eventModifiers: deviceDependentOption))
+
+        // Simula evento com flag Option e outro modificador não configurado
+        let extraModifier = NSEvent.ModifierFlags(rawValue: NSEvent.ModifierFlags.option.rawValue | NSEvent.ModifierFlags.control.rawValue)
+        XCTAssertFalse(hotkey.matches(eventKeyCode: 49, eventModifiers: extraModifier))
+    }
+
     // MARK: - Testes de Ação do SystemGlobalHotkeyManager
 
     func testHotkeyManagerTriggersActions() {
@@ -117,5 +129,12 @@ final class GlobalHotkeyManagerTests: XCTestCase {
         XCTAssertEqual(manager.currentHotkey, custom)
         XCTAssertTrue(manager.currentHotkey.matches(eventKeyCode: 36, eventModifiers: [.command]))
         XCTAssertFalse(manager.currentHotkey.matches(eventKeyCode: 49, eventModifiers: [.option]))
+    }
+
+    func testRestartMonitoring() {
+        let manager = SystemGlobalHotkeyManager()
+        manager.startMonitoring()
+        manager.restartMonitoring()
+        manager.stopMonitoring()
     }
 }

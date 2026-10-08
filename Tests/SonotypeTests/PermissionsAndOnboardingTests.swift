@@ -1,6 +1,7 @@
 import AppKit
 import XCTest
 @preconcurrency import AVFoundation
+@preconcurrency import Speech
 @testable import Sonotype
 
 // MARK: - Mock Permissions Service para Testes Unitários
@@ -11,10 +12,17 @@ final class MockPermissionsService: PermissionsServiceProtocol, Sendable {
     var isMicrophoneAuthorized: Bool {
         microphoneStatus == .authorized
     }
+    var speechStatus: SFSpeechRecognizerAuthorizationStatus = .authorized
+    var isSpeechAuthorized: Bool {
+        speechStatus == .authorized
+    }
     var isAccessibilityAuthorized: Bool = false
 
     var requestMicrophoneAccessResult: Bool = true
     var requestMicrophoneAccessCallCount: Int = 0
+
+    var requestSpeechAccessResult: Bool = true
+    var requestSpeechAccessCallCount: Int = 0
 
     var checkAccessibilityResult: Bool = false
     var checkAccessibilityCallCount: Int = 0
@@ -22,6 +30,12 @@ final class MockPermissionsService: PermissionsServiceProtocol, Sendable {
 
     var openSystemSettingsCallCount: Int = 0
     var lastOpenedSettingsPane: SystemPrivacyPane?
+
+    var startPollingCallCount: Int = 0
+    var stopPollingCallCount: Int = 0
+    var refreshStatusesCallCount: Int = 0
+    var lastStartPollingInterval: TimeInterval?
+    var onRefreshStatuses: (@MainActor () -> Void)?
 
     func requestMicrophoneAccess() async -> Bool {
         requestMicrophoneAccessCallCount += 1
@@ -33,6 +47,16 @@ final class MockPermissionsService: PermissionsServiceProtocol, Sendable {
         return requestMicrophoneAccessResult
     }
 
+    func requestSpeechAccess() async -> Bool {
+        requestSpeechAccessCallCount += 1
+        if requestSpeechAccessResult {
+            speechStatus = .authorized
+        } else {
+            speechStatus = .denied
+        }
+        return requestSpeechAccessResult
+    }
+
     func checkAccessibilityPermission(prompt: Bool) -> Bool {
         checkAccessibilityCallCount += 1
         lastCheckAccessibilityPrompt = prompt
@@ -42,6 +66,20 @@ final class MockPermissionsService: PermissionsServiceProtocol, Sendable {
     func openSystemSettings(for permission: SystemPrivacyPane) {
         openSystemSettingsCallCount += 1
         lastOpenedSettingsPane = permission
+    }
+
+    func startPolling(interval: TimeInterval) {
+        startPollingCallCount += 1
+        lastStartPollingInterval = interval
+    }
+
+    func stopPolling() {
+        stopPollingCallCount += 1
+    }
+
+    func refreshStatuses() {
+        refreshStatusesCallCount += 1
+        onRefreshStatuses?()
     }
 }
 
@@ -185,6 +223,48 @@ final class PermissionsAndOnboardingTests: XCTestCase {
         viewModel.toggleSpeechTest()
         XCTAssertFalse(viewModel.isTestingSpeech)
         XCTAssertTrue(stopped)
+    }
+
+    func testOnboardingViewModelPollingControls() {
+        let mockPermissions = MockPermissionsService()
+        let manager = PreferencesManager(userDefaults: isolatedDefaults)
+        let viewModel = OnboardingViewModel(
+            permissionsService: mockPermissions,
+            preferencesManager: manager
+        )
+
+        XCTAssertEqual(mockPermissions.startPollingCallCount, 0)
+        XCTAssertEqual(mockPermissions.stopPollingCallCount, 0)
+
+        viewModel.startPolling()
+        XCTAssertEqual(mockPermissions.startPollingCallCount, 1)
+        XCTAssertEqual(mockPermissions.lastStartPollingInterval, 0.5)
+
+        viewModel.stopPolling()
+        XCTAssertEqual(mockPermissions.stopPollingCallCount, 1)
+    }
+
+    func testOnboardingViewModelAppDidBecomeActiveRefreshesStatuses() async {
+        let mockPermissions = MockPermissionsService()
+        let manager = PreferencesManager(userDefaults: isolatedDefaults)
+        let viewModel = OnboardingViewModel(
+            permissionsService: mockPermissions,
+            preferencesManager: manager
+        )
+
+        let initialRefreshCount = mockPermissions.refreshStatusesCallCount
+        let refreshExpectation = expectation(description: "refreshStatuses called on app did become active")
+        mockPermissions.onRefreshStatuses = {
+            refreshExpectation.fulfill()
+        }
+
+        // Envia notificação didBecomeActiveNotification
+        NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: nil)
+
+        await fulfillment(of: [refreshExpectation], timeout: 2.0)
+
+        XCTAssertEqual(mockPermissions.refreshStatusesCallCount, initialRefreshCount + 1)
+        _ = viewModel
     }
 
     func testPermissionsServiceSettingsOpenPane() {

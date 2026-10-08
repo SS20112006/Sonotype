@@ -56,6 +56,12 @@ public struct OnboardingView: View {
         }
         .frame(width: 580, height: 500)
         .background(.regularMaterial)
+        .onAppear {
+            viewModel.startPolling()
+        }
+        .onDisappear {
+            viewModel.stopPolling()
+        }
     }
 
     // MARK: - Cabeçalho do Indicador de Passos

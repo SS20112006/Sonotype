@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 import os
 
@@ -7,10 +8,17 @@ public struct GlobalHotkey: Sendable, Equatable, Hashable, Codable {
     public let keyCode: UInt16
     public let modifiers: UInt
 
+    /// Modificadores relevantes suportados para atalhos do Sonotype.
+    public static let relevantModifiersMask: NSEvent.ModifierFlags = [.option, .command, .control, .shift]
+
     public init(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) {
         self.keyCode = keyCode
         // Preserva unicamente as teclas modificadoras relevantes (Option, Command, Control, Shift)
-        let relevant = modifiers.intersection([.option, .command, .control, .shift]).rawValue
+        // e mascara bits dependentes do dispositivo físico no macOS 14/15
+        let relevant = modifiers
+            .intersection(.deviceIndependentFlagsMask)
+            .intersection(Self.relevantModifiersMask)
+            .rawValue
         self.modifiers = UInt(relevant)
     }
 
@@ -113,8 +121,13 @@ public struct GlobalHotkey: Sendable, Equatable, Hashable, Codable {
     /// Compara se um evento do macOS coincide com esta combinação de teclas.
     public func matches(eventKeyCode: UInt16, eventModifiers: NSEvent.ModifierFlags) -> Bool {
         guard eventKeyCode == keyCode else { return false }
-        let currentRelevant = eventModifiers.intersection([.option, .command, .control, .shift]).rawValue
-        return currentRelevant == modifiers
+        // No macOS 14/15, event.modifierFlags contém bits independentes de dispositivo mais flags internas/físicas.
+        // Sanitiza bits dependentes usando .deviceIndependentFlagsMask e isola as teclas relevantes.
+        let sanitized = eventModifiers
+            .intersection(.deviceIndependentFlagsMask)
+            .intersection(Self.relevantModifiersMask)
+        let relevant = UInt(sanitized.rawValue)
+        return relevant == modifiers
     }
 }
 
@@ -126,12 +139,19 @@ public protocol GlobalHotkeyMonitoring: AnyObject, Sendable {
 
     func startMonitoring()
     func stopMonitoring()
+    func restartMonitoring()
 
     func onHotkeyPressed(_ action: @escaping @MainActor @Sendable () -> Void)
     func onEscapePressed(_ action: @escaping @MainActor @Sendable () -> Void)
 
     func simulateHotkeyPressed()
     func simulateEscapePressed()
+}
+
+extension GlobalHotkeyMonitoring {
+    public func restartMonitoring() {
+        startMonitoring()
+    }
 }
 
 /// Contentor auxiliar thread-safe para remoção limpa de tokens de monitores NSEvent no deinit.
@@ -182,16 +202,34 @@ public final class SystemGlobalHotkeyManager: GlobalHotkeyMonitoring, Sendable {
     public var currentHotkey: GlobalHotkey
 
     private let monitorTokens = MonitorTokenBox()
+    private var cancellables = Set<AnyCancellable>()
+    private var lastAccessibilityState: Bool = AXIsProcessTrusted()
 
     private var hotkeyAction: (@MainActor @Sendable () -> Void)?
     private var escapeAction: (@MainActor @Sendable () -> Void)?
 
     public init(hotkey: GlobalHotkey = .defaultToggle) {
         self.currentHotkey = hotkey
+        setupAccessibilityObserver()
     }
 
     deinit {
         monitorTokens.removeAll()
+    }
+
+    private func setupAccessibilityObserver() {
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                let currentTrusted = AXIsProcessTrusted()
+                if currentTrusted != self.lastAccessibilityState {
+                    self.lastAccessibilityState = currentTrusted
+                    Self.logger.info("Estado de Acessibilidade alterado para \(currentTrusted, privacy: .public). Reiniciando monitores de atalhos.")
+                    self.restartMonitoring()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     public func onHotkeyPressed(_ action: @escaping @MainActor @Sendable () -> Void) {
@@ -206,6 +244,11 @@ public final class SystemGlobalHotkeyManager: GlobalHotkeyMonitoring, Sendable {
     public func startMonitoring() {
         stopMonitoring()
         Self.logger.info("Iniciando monitorização de atalhos globais")
+
+        // No macOS, capturar eventos globais de outras aplicações requer permissão de Acessibilidade
+        if !AXIsProcessTrusted() {
+            Self.logger.warning("Monitor global de teclas inativo: permissão de acessibilidade necessária")
+        }
 
         // Monitor global para quando outras aplicações do macOS estiverem em primeiro plano
         let global = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
@@ -224,6 +267,12 @@ public final class SystemGlobalHotkeyManager: GlobalHotkeyMonitoring, Sendable {
             return event
         }
         monitorTokens.setLocal(local)
+    }
+
+    /// Reinicia a monitorização de atalhos globais (ex: quando o estado de Acessibilidade muda).
+    public func restartMonitoring() {
+        Self.logger.info("Reiniciando monitorização de atalhos globais")
+        startMonitoring()
     }
 
     /// Interrompe a escuta ativa e desaloca os monitores.

@@ -189,26 +189,14 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
             let micStatus = self.permissionsService?.microphoneStatus ?? AVCaptureDevice.authorizationStatus(for: .audio)
             let speechStatus = self.permissionsService?.speechStatus ?? SFSpeechRecognizer.authorizationStatus()
 
-            if micStatus == .notDetermined || speechStatus == .notDetermined {
-                Self.logger.info("Autorizações pendentes detectadas. Requisitando assincronamente...")
-                Task { @MainActor [weak self] in
-                    if micStatus == .notDetermined {
-                        _ = await self?.permissionsService?.requestMicrophoneAccess()
-                    }
-                    if speechStatus == .notDetermined {
-                        _ = await self?.permissionsService?.requestSpeechAccess()
-                    }
-                }
-            }
-
-            if micStatus == .denied || micStatus == .restricted {
-                Self.logger.error("Tentativa de gravação com microfone não autorizado")
+            if micStatus == .denied || micStatus == .restricted || micStatus == .notDetermined {
+                Self.logger.error("Tentativa de gravação com microfone não autorizado (status: \(micStatus.rawValue))")
                 coordinator.handleError(SpeechRecognitionError.microphoneNotAuthorized)
                 return
             }
 
-            if speechStatus == .denied || speechStatus == .restricted {
-                Self.logger.error("Tentativa de gravação com reconhecimento de fala não autorizado")
+            if speechStatus == .denied || speechStatus == .restricted || speechStatus == .notDetermined {
+                Self.logger.error("Tentativa de gravação com reconhecimento de fala não autorizado (status: \(speechStatus.rawValue))")
                 coordinator.handleError(SpeechRecognitionError.notAuthorized)
                 return
             }

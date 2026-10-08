@@ -428,6 +428,9 @@ final class PreferencesManagerTests: XCTestCase {
             silenceManager: SilenceTimeoutManager(timeoutDuration: 45.0),
             soundPlayer: MockFeedbackSoundPlayer()
         )
+        let authorizedPermissions = MockPermissionsService()
+        authorizedPermissions.microphoneStatus = .authorized
+        authorizedPermissions.speechStatus = .authorized
 
         appDelegate.setupCoreServices(
             preferencesManager: manager,
@@ -440,7 +443,8 @@ final class PreferencesManagerTests: XCTestCase {
             speechService: mockSpeech,
             languageDetector: LanguageDetectorService(),
             postProcessor: TextPostProcessor(),
-            injectionService: TextInjectionService()
+            injectionService: TextInjectionService(),
+            permissionsService: authorizedPermissions
         )
 
         // Inicia gravação com modo fixo EN
@@ -481,6 +485,9 @@ final class PreferencesManagerTests: XCTestCase {
             silenceManager: SilenceTimeoutManager(timeoutDuration: 45.0),
             soundPlayer: MockFeedbackSoundPlayer()
         )
+        let authorizedPermissions = MockPermissionsService()
+        authorizedPermissions.microphoneStatus = .authorized
+        authorizedPermissions.speechStatus = .authorized
 
         appDelegate.setupCoreServices(
             preferencesManager: manager,
@@ -493,7 +500,8 @@ final class PreferencesManagerTests: XCTestCase {
             speechService: mockSpeech,
             languageDetector: LanguageDetectorService(),
             postProcessor: TextPostProcessor(),
-            injectionService: injectionService
+            injectionService: injectionService,
+            permissionsService: authorizedPermissions
         )
 
         // Inicia gravação

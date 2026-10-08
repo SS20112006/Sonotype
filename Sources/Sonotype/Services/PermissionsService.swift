@@ -35,6 +35,15 @@ public protocol PermissionsServiceProtocol: AnyObject, Sendable {
 
     /// Abre o painel correspondente das Definições do Sistema no macOS.
     func openSystemSettings(for permission: SystemPrivacyPane)
+
+    /// Atualiza imediatamente os estados de microfone, fala e acessibilidade.
+    func refreshStatuses()
+
+    /// Inicia temporizador de monitorização periódica durante os passos de Onboarding ou ecrã de Definições.
+    func startPolling(interval: TimeInterval)
+
+    /// Para o temporizador de monitorização periódica.
+    func stopPolling()
 }
 
 extension PermissionsServiceProtocol {
@@ -54,10 +63,16 @@ extension PermissionsServiceProtocol {
 
         return await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { status in
-                continuation.resume(returning: status == .authorized)
+                Task { @MainActor in
+                    continuation.resume(returning: status == .authorized)
+                }
             }
         }
     }
+
+    public func refreshStatuses() {}
+    public func startPolling(interval: TimeInterval = 0.5) {}
+    public func stopPolling() {}
 }
 
 /// Identificadores de painéis de privacidade das Definições do Sistema no macOS.
@@ -98,14 +113,25 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
 
     private let workspace: NSWorkspace
     private var pollTimer: Timer?
+    private var cancellables = Set<AnyCancellable>()
 
     public init(workspace: NSWorkspace = .shared) {
         self.workspace = workspace
         refreshStatuses()
+        setupAppActiveObserver()
     }
 
     deinit {
-        // Timer with weak target will get deallocated; or if stopped before deinit.
+        // AnyCancellable e Timer são limpos automaticamente no ciclo de vida
+    }
+
+    private func setupAppActiveObserver() {
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.refreshStatuses()
+            }
+            .store(in: &cancellables)
     }
 
     /// Atualiza imediatamente os estados observáveis de microfone, fala e acessibilidade.
@@ -116,7 +142,7 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
     }
 
     /// Inicia temporizador de monitorização periódica durante os passos de Onboarding ou ecrã de Definições.
-    public func startPolling(interval: TimeInterval = 1.0) {
+    public func startPolling(interval: TimeInterval = 0.5) {
         stopPolling()
         refreshStatuses()
         pollTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
@@ -155,9 +181,9 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
         }
 
         return await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { [weak self] status in
-                Task { @MainActor [weak self] in
-                    self?.speechStatus = status
+            SFSpeechRecognizer.requestAuthorization { status in
+                Task { @MainActor in
+                    self.speechStatus = status
                     Self.logger.info("Resultado do pedido de fala: \(status.rawValue, privacy: .public)")
                     continuation.resume(returning: status == .authorized)
                 }
