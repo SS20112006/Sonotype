@@ -251,12 +251,16 @@ final class SettingsViewsTests: XCTestCase {
         // Acionar abertura da janela de definições
         appDelegate.openSettingsWindow()
 
-        // Como executamos em ambiente de teste sem GUI do macOS activa,
-        // o fallback cria e foca a janela `settingsWindow`
+        XCTAssertNotNil(appDelegate.settingsWindow)
         if let window = appDelegate.settingsWindow {
             XCTAssertEqual(window.title, "Definições")
             XCTAssertTrue(window.contentViewController is NSHostingController<SettingsView>)
         }
+
+        // Acionar novamente para garantir foco e reutilização sem criar janela duplicada
+        let firstWindow = appDelegate.settingsWindow
+        appDelegate.openSettingsWindow()
+        XCTAssertTrue(appDelegate.settingsWindow === firstWindow)
     }
 
     func testSettingsTabEnumProperties() {

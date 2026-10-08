@@ -46,12 +46,14 @@ public struct QuickPopoverView: View {
         VStack(alignment: .leading, spacing: 14) {
             // Header: Marca + Estado + Idioma
             HStack(spacing: 10) {
-                Image(systemName: "waveform.circle.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 24, height: 24)
-                    .foregroundStyle(.tint)
-                    .accessibilityHidden(true)
+                LiquidGlassLogoView(
+                    state: state,
+                    size: 34,
+                    action: {
+                        recordingTrigger += 1
+                        onToggleRecording?()
+                    }
+                )
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Sonotype")
@@ -61,6 +63,7 @@ public struct QuickPopoverView: View {
 
                     statusLabel
                 }
+                .accessibilityElement(children: .combine)
 
                 Spacer()
 
@@ -74,7 +77,6 @@ public struct QuickPopoverView: View {
                     .background(.quaternary, in: Capsule())
                     .accessibilityLabel("Idioma atual: \(currentLanguage)")
             }
-            .accessibilityElement(children: .combine)
 
             // Cartão de Atalho com tecla estilizada
             HStack {

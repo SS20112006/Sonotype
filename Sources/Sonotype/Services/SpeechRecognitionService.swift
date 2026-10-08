@@ -7,6 +7,8 @@ import os
 public enum SpeechRecognitionError: LocalizedError, Sendable {
     case recognizerUnavailable(SpeechLanguage)
     case onDeviceRecognitionUnsupported(SpeechLanguage)
+    case notAuthorized
+    case microphoneNotAuthorized
     case alreadyRecognizing
     case noActiveSession
 
@@ -16,6 +18,10 @@ public enum SpeechRecognitionError: LocalizedError, Sendable {
             return "Reconhecedor de fala indisponível para o idioma \(lang.rawValue)."
         case .onDeviceRecognitionUnsupported(let lang):
             return "Reconhecimento offline (no dispositivo) não suportado para \(lang.rawValue)."
+        case .notAuthorized:
+            return "Permissão de reconhecimento de fala não concedida. Ative nas Definições do Sistema."
+        case .microphoneNotAuthorized:
+            return "Permissão de microfone não concedida. Ative nas Definições do Sistema."
         case .alreadyRecognizing:
             return "Já existe uma sessão de reconhecimento em curso."
         case .noActiveSession:
@@ -100,14 +106,24 @@ public class SpeechRecognitionService: @unchecked Sendable {
         recognizers[language] = rec
 
         if requiresOnDeviceRecognition && !rec.supportsOnDeviceRecognition {
-            // Nota: Em simuladores ou máquinas sem modelos descarregados, avisa com erro tipado
-            Self.logger.error("Reconhecimento offline no dispositivo não suportado para \(language.rawValue, privacy: .public)")
-            throw SpeechRecognitionError.onDeviceRecognitionUnsupported(language)
+            let speechAuth = SFSpeechRecognizer.authorizationStatus()
+            let micAuth = AVCaptureDevice.authorizationStatus(for: .audio)
+
+            if speechAuth == .denied || speechAuth == .restricted {
+                Self.logger.error("Permissão de reconhecimento de fala não concedida (\(speechAuth.rawValue)) para \(language.rawValue, privacy: .public)")
+                throw SpeechRecognitionError.notAuthorized
+            } else if micAuth == .denied || micAuth == .restricted {
+                Self.logger.error("Permissão de microfone não concedida (\(micAuth.rawValue)) para \(language.rawValue, privacy: .public)")
+                throw SpeechRecognitionError.microphoneNotAuthorized
+            } else {
+                Self.logger.warning("Reconhecimento offline no dispositivo ainda não disponível para \(language.rawValue, privacy: .public). O modelo pode estar em descarregamento.")
+                throw SpeechRecognitionError.onDeviceRecognitionUnsupported(language)
+            }
         }
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
-        request.requiresOnDeviceRecognition = requiresOnDeviceRecognition
+        request.requiresOnDeviceRecognition = requiresOnDeviceRecognition && rec.supportsOnDeviceRecognition
 
         self.currentRequest = request
         self._isRecognizing = true

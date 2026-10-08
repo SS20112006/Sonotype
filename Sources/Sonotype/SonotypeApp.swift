@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+@preconcurrency import Speech
+@preconcurrency import AVFoundation
 import os
 
 /// Delegado principal do ciclo de vida da aplicação Sonotype no macOS.
@@ -183,6 +185,34 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
                 self.activeLanguage = .englishUS
             }
 
+            // Verificar autorizações de microfone e reconhecimento de fala
+            let micStatus = self.permissionsService?.microphoneStatus ?? AVCaptureDevice.authorizationStatus(for: .audio)
+            let speechStatus = self.permissionsService?.speechStatus ?? SFSpeechRecognizer.authorizationStatus()
+
+            if micStatus == .notDetermined || speechStatus == .notDetermined {
+                Self.logger.info("Autorizações pendentes detectadas. Requisitando assincronamente...")
+                Task { @MainActor [weak self] in
+                    if micStatus == .notDetermined {
+                        _ = await self?.permissionsService?.requestMicrophoneAccess()
+                    }
+                    if speechStatus == .notDetermined {
+                        _ = await self?.permissionsService?.requestSpeechAccess()
+                    }
+                }
+            }
+
+            if micStatus == .denied || micStatus == .restricted {
+                Self.logger.error("Tentativa de gravação com microfone não autorizado")
+                coordinator.handleError(SpeechRecognitionError.microphoneNotAuthorized)
+                return
+            }
+
+            if speechStatus == .denied || speechStatus == .restricted {
+                Self.logger.error("Tentativa de gravação com reconhecimento de fala não autorizado")
+                coordinator.handleError(SpeechRecognitionError.notAuthorized)
+                return
+            }
+
             // Iniciar reconhecimento de voz para o idioma ativo
             do {
                 try speechService.startRecognition(
@@ -362,14 +392,46 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         // 3. Vincula MenuBarExtra ao ciclo de vida da gravação
         menuBarManager.attach(to: finalCoordinator)
 
-        // 4. Vincula tratamento centralizado de erros da sessão
+        // 4. Vincula tratamento centralizado de erros da sessão com diagnóstico claro no HUD
         finalCoordinator.onError = { [weak self] error in
             Self.logger.error("Erro reportado no coordenador de gravação: \(error.localizedDescription, privacy: .public)")
             self?.audioCaptureService?.stopCapture()
             self?.speechService?.cancel()
             self?.currentTranscription = ""
             self?.sessionStartTime = nil
-            self?.hudController?.setCancelled()
+
+            let reason: String
+            if let speechError = error as? SpeechRecognitionError {
+                switch speechError {
+                case .notAuthorized:
+                    reason = "Sem permissão de fala"
+                    self?.permissionsService?.openSystemSettings(for: .speechRecognition)
+                case .microphoneNotAuthorized:
+                    reason = "Sem microfone"
+                    self?.permissionsService?.openSystemSettings(for: .microphone)
+                case .onDeviceRecognitionUnsupported:
+                    reason = "Voz offline indisponível"
+                case .recognizerUnavailable:
+                    reason = "Idioma indisponível"
+                case .alreadyRecognizing:
+                    reason = "Já a escutar"
+                case .noActiveSession:
+                    reason = "Sessão inativa"
+                }
+            } else if let audioError = error as? AudioCaptureError {
+                switch audioError {
+                case .bufferAllocationFailed:
+                    reason = "Erro de memória"
+                case .converterInitializationFailed:
+                    reason = "Erro no conversor de áudio"
+                case .conversionFailed:
+                    reason = "Erro de áudio"
+                }
+            } else {
+                reason = "Erro na gravação"
+            }
+
+            self?.hudController?.setCancelled(reason: reason)
             self?.menuBarManager?.setPlaybackState(.idle)
         }
 
@@ -485,30 +547,24 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
     }
 
     /// Abre a janela de definições do Sonotype.
-    /// Tenta acionar a scene Settings do SwiftUI; se não estiver disponível, cria ou foca a janela dedicada.
+    /// Instancia ou foca diretamente a janela dedicada NSWindow contendo SettingsView(preferencesManager: manager).
     public func openSettingsWindow() {
         guard let app = NSApp else { return }
         app.activate(ignoringOtherApps: true)
 
-        // 1. Tenta acionar o seletor padrão do SwiftUI para a scene Settings
-        let handled = app.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        if handled {
-            dockCoordinator?.syncWithOpenWindows()
-            return
-        }
-
-        // 2. Se a janela dedicada já existir, foca-a
-        if let window = settingsWindow, window.isVisible {
+        // Se a janela dedicada já existir, centraliza-a e traz para a frente
+        if let window = settingsWindow {
             if window.isMiniaturized {
                 window.deminiaturize(nil)
             }
+            window.center()
             window.makeKeyAndOrderFront(nil)
             window.orderFrontRegardless()
             dockCoordinator?.syncWithOpenWindows()
             return
         }
 
-        // 3. Fallback: cria e apresenta a janela de definições com SettingsView
+        // Instancia a janela dedicada com SettingsView
         let manager = self.preferencesManager ?? .shared
         let settingsView = SettingsView(preferencesManager: manager)
         let hostingController = NSHostingController(rootView: settingsView)

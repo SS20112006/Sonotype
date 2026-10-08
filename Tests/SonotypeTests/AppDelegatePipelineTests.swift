@@ -262,7 +262,22 @@ final class AppDelegatePipelineTests: XCTestCase {
         XCTAssertEqual(coordinator.stateMachine.currentState, .idle)
         XCTAssertFalse(mockAudioService.startCaptureCalled, "A captação não deve iniciar se o reconhecimento falhar.")
         XCTAssertEqual(hudController.viewModel.displayState, .cancelled)
+        XCTAssertEqual(hudController.viewModel.configuration.cancelledTitle, "Idioma indisponível")
         XCTAssertEqual(menuBarManager.currentState, .idle)
+    }
+
+    func testCoordinatorOnErrorDisplaysUserFriendlyHUDReasonForSpeechErrors() {
+        coordinator.handleError(SpeechRecognitionError.notAuthorized)
+        XCTAssertEqual(hudController.viewModel.displayState, .cancelled)
+        XCTAssertEqual(hudController.viewModel.configuration.cancelledTitle, "Sem permissão de fala")
+
+        coordinator.handleError(SpeechRecognitionError.microphoneNotAuthorized)
+        XCTAssertEqual(hudController.viewModel.displayState, .cancelled)
+        XCTAssertEqual(hudController.viewModel.configuration.cancelledTitle, "Sem microfone")
+
+        coordinator.handleError(SpeechRecognitionError.onDeviceRecognitionUnsupported(.portuguesePT))
+        XCTAssertEqual(hudController.viewModel.displayState, .cancelled)
+        XCTAssertEqual(hudController.viewModel.configuration.cancelledTitle, "Voz offline indisponível")
     }
 
     func testStartRecordingAudioCaptureServiceErrorHandled() {
@@ -274,6 +289,7 @@ final class AppDelegatePipelineTests: XCTestCase {
         XCTAssertEqual(coordinator.stateMachine.currentState, .idle)
         XCTAssertTrue(mockSpeechService.cancelCalled, "A sessão de fala deve ser cancelada se a captura falhar.")
         XCTAssertEqual(hudController.viewModel.displayState, .cancelled)
+        XCTAssertEqual(hudController.viewModel.configuration.cancelledTitle, "Erro no conversor de áudio")
         XCTAssertEqual(menuBarManager.currentState, .idle)
     }
 
@@ -359,6 +375,7 @@ final class AppDelegatePipelineTests: XCTestCase {
         XCTAssertEqual(appDelegate.currentTranscription, "", "O rascunho de transcrição deve ser descartado.")
         XCTAssertEqual(mockAX.injectCallCount, 0, "Nenhum texto deve ser injetado no cancelamento.")
         XCTAssertEqual(hudController.viewModel.displayState, .cancelled)
+        XCTAssertEqual(hudController.viewModel.configuration.cancelledTitle, "Cancelado")
         XCTAssertEqual(menuBarManager.currentState, .idle)
     }
 
@@ -378,6 +395,7 @@ final class AppDelegatePipelineTests: XCTestCase {
         XCTAssertTrue(mockSpeechService.cancelCalled)
         XCTAssertEqual(appDelegate.currentTranscription, "")
         XCTAssertEqual(hudController.viewModel.displayState, .cancelled)
+        XCTAssertEqual(hudController.viewModel.configuration.cancelledTitle, "Erro de memória")
         XCTAssertEqual(menuBarManager.currentState, .idle)
     }
 

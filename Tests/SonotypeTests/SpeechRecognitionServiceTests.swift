@@ -70,5 +70,9 @@ final class SpeechRecognitionServiceTests: XCTestCase {
         XCTAssertNotNil(err3.errorDescription)
         let err4 = SpeechRecognitionError.noActiveSession
         XCTAssertNotNil(err4.errorDescription)
+        let err5 = SpeechRecognitionError.notAuthorized
+        XCTAssertNotNil(err5.errorDescription)
+        let err6 = SpeechRecognitionError.microphoneNotAuthorized
+        XCTAssertNotNil(err6.errorDescription)
     }
 }

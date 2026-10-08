@@ -196,6 +196,11 @@ final class PermissionsAndOnboardingTests: XCTestCase {
         mockPermissions.openSystemSettings(for: .accessibility)
         XCTAssertEqual(mockPermissions.openSystemSettingsCallCount, 2)
         XCTAssertEqual(mockPermissions.lastOpenedSettingsPane, .accessibility)
+
+        mockPermissions.openSystemSettings(for: .speechRecognition)
+        XCTAssertEqual(mockPermissions.openSystemSettingsCallCount, 3)
+        XCTAssertEqual(mockPermissions.lastOpenedSettingsPane, .speechRecognition)
+        XCTAssertNotNil(SystemPrivacyPane.speechRecognition.url)
     }
 
     // MARK: - 3. Integração com AppDelegate e Abertura de Janelas

@@ -136,27 +136,40 @@ public final class HUDController: Sendable {
     }
 
     /// Exibe brevemente o estado cancelado e recolhe a pílula automaticamente.
-    public func setCancelled() {
+    /// Opcionalmente apresenta uma mensagem explicativa do motivo do cancelamento no HUD.
+    public func setCancelled(reason: String? = nil) {
         hideTask?.cancel()
+        if let reason = reason, !reason.isEmpty {
+            viewModel.configuration.cancelledTitle = reason
+        }
         withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
             viewModel.displayState = .cancelled
             viewModel.amplitude = 0.0
         }
 
+        panel.repositionToBottomCenter()
+        panel.orderFrontRegardless()
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            viewModel.isVisible = true
+        }
+
+        let delayNanos: UInt64 = reason != nil ? 1_500_000_000 : 500_000_000
         hideTask = Task { @MainActor [weak self] in
             do {
-                try await Task.sleep(nanoseconds: 500_000_000)
+                try await Task.sleep(nanoseconds: delayNanos)
             } catch {
                 return
             }
             guard !Task.isCancelled, let self = self else { return }
             self.hide()
+            self.viewModel.configuration.cancelledTitle = "Cancelado"
         }
     }
 
     /// Reinicia todos os estados visuais.
     public func reset() {
         hide(animated: false)
+        viewModel.configuration.cancelledTitle = "Cancelado"
     }
 
     /// Vincula o controlador do HUD aos eventos do RecordingSessionCoordinator.

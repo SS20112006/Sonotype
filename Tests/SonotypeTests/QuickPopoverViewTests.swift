@@ -50,8 +50,10 @@ final class QuickPopoverViewTests: XCTestCase {
     }
 
     func testQuickPopoverViewBodyEvaluation() {
-        let view = QuickPopoverView(state: .recording)
-        _ = view.body
-        XCTAssertEqual(view.state, .recording)
+        for state in [QuickPopoverState.idle, .recording, .processing] {
+            let view = QuickPopoverView(state: state)
+            _ = view.body
+            XCTAssertEqual(view.state, state)
+        }
     }
 }
