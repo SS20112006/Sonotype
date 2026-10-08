@@ -55,12 +55,10 @@ public final class SystemAccessibilityInjector: AccessibilityTextInjecting, Send
     public init() {}
 
     public func isProcessTrusted(prompt: Bool = false) -> Bool {
-        if prompt {
-            let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue()
-            let options = [key: kCFBooleanTrue as Any] as CFDictionary
-            return AXIsProcessTrustedWithOptions(options)
-        }
-        return AXIsProcessTrusted()
+        let promptKey = "AXTrustedCheckOptionPrompt" as CFString
+        let value = prompt ? kCFBooleanTrue : kCFBooleanFalse
+        let options = [promptKey: value as Any] as CFDictionary
+        return AXIsProcessTrustedWithOptions(options)
     }
 
     public func injectTextAtCursor(_ text: String) -> Bool {

@@ -368,4 +368,87 @@ final class PermissionsAndOnboardingTests: XCTestCase {
         appDelegate.closeOnboardingWindow()
         XCTAssertNil(appDelegate.onboardingWindow)
     }
+
+    // MARK: - 4. Sincronização e Pedido de Microfone e Fala Conjuntos
+
+    func testOnboardingViewModelRequestsBothMicrophoneAndSpeech() async {
+        let mockPermissions = MockPermissionsService()
+        let manager = PreferencesManager(userDefaults: isolatedDefaults)
+        let viewModel = OnboardingViewModel(
+            permissionsService: mockPermissions,
+            preferencesManager: manager
+        )
+
+        mockPermissions.requestMicrophoneAccessResult = true
+        mockPermissions.requestSpeechAccessResult = true
+
+        await viewModel.requestMicrophoneAccess()
+
+        XCTAssertEqual(mockPermissions.requestMicrophoneAccessCallCount, 1)
+        XCTAssertEqual(mockPermissions.requestSpeechAccessCallCount, 1)
+        XCTAssertTrue(viewModel.isMicrophoneAuthorized)
+        XCTAssertTrue(viewModel.isSpeechAuthorized)
+        XCTAssertNil(viewModel.errorMessage)
+        XCTAssertTrue(viewModel.canAdvance)
+    }
+
+    func testOnboardingViewModelMicrophoneDeniedSetsErrorMessage() async {
+        let mockPermissions = MockPermissionsService()
+        let manager = PreferencesManager(userDefaults: isolatedDefaults)
+        let viewModel = OnboardingViewModel(
+            permissionsService: mockPermissions,
+            preferencesManager: manager
+        )
+
+        mockPermissions.requestMicrophoneAccessResult = false
+        mockPermissions.requestSpeechAccessResult = true
+
+        await viewModel.requestMicrophoneAccess()
+
+        XCTAssertEqual(mockPermissions.requestMicrophoneAccessCallCount, 1)
+        XCTAssertFalse(viewModel.isMicrophoneAuthorized)
+        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertFalse(viewModel.canAdvance)
+    }
+
+    func testOnboardingViewModelSpeechDeniedSetsErrorMessage() async {
+        let mockPermissions = MockPermissionsService()
+        let manager = PreferencesManager(userDefaults: isolatedDefaults)
+        let viewModel = OnboardingViewModel(
+            permissionsService: mockPermissions,
+            preferencesManager: manager
+        )
+
+        mockPermissions.requestMicrophoneAccessResult = true
+        mockPermissions.requestSpeechAccessResult = false
+
+        await viewModel.requestMicrophoneAccess()
+
+        XCTAssertEqual(mockPermissions.requestSpeechAccessCallCount, 1)
+        XCTAssertFalse(viewModel.isSpeechAuthorized)
+        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertFalse(viewModel.canAdvance)
+    }
+
+    func testOnboardingViewModelDirectPublishedPropertiesSync() {
+        let mockPermissions = MockPermissionsService()
+        let manager = PreferencesManager(userDefaults: isolatedDefaults)
+        let viewModel = OnboardingViewModel(
+            permissionsService: mockPermissions,
+            preferencesManager: manager
+        )
+
+        XCTAssertFalse(viewModel.isAccessibilityAuthorized)
+        XCTAssertFalse(viewModel.isMicrophoneAuthorized)
+
+        mockPermissions.microphoneStatus = .authorized
+        mockPermissions.speechStatus = .authorized
+        mockPermissions.isAccessibilityAuthorized = true
+
+        viewModel.refreshStatuses()
+
+        XCTAssertTrue(viewModel.isAccessibilityAuthorized)
+        XCTAssertTrue(viewModel.isMicrophoneAuthorized)
+        XCTAssertTrue(viewModel.isSpeechAuthorized)
+    }
 }

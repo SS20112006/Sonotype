@@ -145,7 +145,7 @@ public struct OnboardingView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 72, height: 72)
-                .foregroundStyle(viewModel.permissionsService.isMicrophoneAuthorized ? Color.green : Color.accentColor)
+                .foregroundStyle((viewModel.isMicrophoneAuthorized && viewModel.isSpeechAuthorized) ? Color.green : Color.accentColor)
                 .accessibilityHidden(true)
 
             Text("Acesso ao Microfone")
@@ -167,23 +167,33 @@ public struct OnboardingView: View {
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: viewModel.permissionsService.isMicrophoneAuthorized ? "checkmark.circle.fill" : "mic.fill")
-                        Text(viewModel.permissionsService.isMicrophoneAuthorized ? "Autorizado" : "Permitir Microfone")
+                        Image(systemName: (viewModel.isMicrophoneAuthorized && viewModel.isSpeechAuthorized) ? "checkmark.circle.fill" : "mic.fill")
+                        Text((viewModel.isMicrophoneAuthorized && viewModel.isSpeechAuthorized) ? "Autorizado" : "Permitir Microfone")
                             .font(.system(size: 13, weight: .medium))
                             .tracking(-0.08)
                     }
                     .frame(minWidth: 160, minHeight: 44) // Target >= 44pt
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(viewModel.permissionsService.isMicrophoneAuthorized ? .green : .accentColor)
-                .disabled(viewModel.permissionsService.isMicrophoneAuthorized)
-                .sensoryFeedback(.success, trigger: viewModel.permissionsService.isMicrophoneAuthorized)
+                .tint((viewModel.isMicrophoneAuthorized && viewModel.isSpeechAuthorized) ? .green : .accentColor)
+                .disabled(viewModel.isMicrophoneAuthorized && viewModel.isSpeechAuthorized)
+                .sensoryFeedback(.success, trigger: viewModel.isMicrophoneAuthorized && viewModel.isSpeechAuthorized)
 
-                if !viewModel.permissionsService.isMicrophoneAuthorized {
+                if !viewModel.isMicrophoneAuthorized {
                     Button {
                         viewModel.openSystemSettings(for: .microphone)
                     } label: {
                         Text("Abrir Definições")
+                            .font(.system(size: 13, weight: .medium))
+                            .tracking(-0.08)
+                            .frame(minWidth: 140, minHeight: 44) // Target >= 44pt
+                    }
+                    .buttonStyle(.bordered)
+                } else if !viewModel.isSpeechAuthorized {
+                    Button {
+                        viewModel.openSystemSettings(for: .speechRecognition)
+                    } label: {
+                        Text("Definições de Fala")
                             .font(.system(size: 13, weight: .medium))
                             .tracking(-0.08)
                             .frame(minWidth: 140, minHeight: 44) // Target >= 44pt
@@ -203,7 +213,7 @@ public struct OnboardingView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 56, height: 56)
-                .foregroundStyle(viewModel.permissionsService.isAccessibilityAuthorized ? Color.green : Color.accentColor)
+                .foregroundStyle(viewModel.isAccessibilityAuthorized ? Color.green : Color.accentColor)
                 .accessibilityHidden(true)
 
             Text("Controlo de Acessibilidade")
@@ -218,7 +228,7 @@ public struct OnboardingView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if viewModel.permissionsService.isAccessibilityAuthorized {
+            if viewModel.isAccessibilityAuthorized {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(Color.green)
@@ -267,10 +277,10 @@ public struct OnboardingView: View {
                     }
                     .buttonStyle(.bordered)
                 }
-                .sensoryFeedback(.selection, trigger: viewModel.permissionsService.isAccessibilityAuthorized)
+                .sensoryFeedback(.selection, trigger: viewModel.isAccessibilityAuthorized)
 
                 VStack(spacing: 8) {
-                    Text("Se já ativou nas Definições do Sistema mas o macOS ainda não atualizou a permissão (comportamento típico em apps de desenvolvimento), pode clicar em 'Continuar mesmo assim' ou 'Ignorar temporariamente'.")
+                    Text("Nota: Se o Sonotype já constar na lista de Acessibilidade das Definições do Sistema de uma versão anterior, o macOS requer desativar e voltar a ativar o botão uma vez para atualizar a cache do sistema. Em alternativa, pode clicar em 'Continuar mesmo assim'.")
                         .font(.system(size: 11, weight: .regular))
                         .tracking(-0.1)
                         .foregroundStyle(.secondary)

@@ -6,6 +6,7 @@ MACOS_DIR = $(CONTENTS_DIR)/MacOS
 RESOURCES_DIR = $(CONTENTS_DIR)/Resources
 ENTITLEMENTS = Sonotype.entitlements
 INFO_PLIST = Resources/Info.plist
+REQUIREMENTS = Resources/Sonotype.requirements
 
 .PHONY: all build check local run clean
 
@@ -27,8 +28,8 @@ local: build
 	@cp .build/release/$(APP_NAME) $(MACOS_DIR)/$(APP_NAME)
 	@cp $(INFO_PLIST) $(CONTENTS_DIR)/Info.plist
 	@if [ -f $(ENTITLEMENTS) ]; then cp $(ENTITLEMENTS) $(RESOURCES_DIR)/; fi
-	@echo "==> A assinar com entitlements locais..."
-	@codesign --force --sign - --entitlements $(ENTITLEMENTS) $(APP_BUNDLE)
+	@echo "==> A assinar com entitlements locais e designated requirement..."
+	@codesign --force --sign - -r $(REQUIREMENTS) --entitlements $(ENTITLEMENTS) $(APP_BUNDLE)
 	@echo "==> Bundle pronto em $(APP_BUNDLE)"
 
 run: local

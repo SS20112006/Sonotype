@@ -1,15 +1,25 @@
 import SwiftUI
 
 /// Painel principal de Definições (Preferences / Settings) da aplicação Sonotype no macOS Sequoia.
-/// Estruturado nativamente com `TabView` e 5 abas semânticas: Geral, Gravação, Texto & Idioma,
+/// Estruturado nativamente com `TabView` e 6 abas semânticas: Geral, Permissões, Gravação, Texto & Idioma,
 /// Clipboard e Estatísticas. Cumpre rigorosamente Apple Human Interface Guidelines e WCAG 2.1 AA.
 @MainActor
 public struct SettingsView: View {
     @ObservedObject public var preferencesManager: PreferencesManager
-    @State public var selectedTab: SettingsTab = .general
+    public let permissionsService: PermissionsServiceProtocol
+    public var onRelaunchOnboarding: (@MainActor @Sendable () -> Void)?
+    @State public var selectedTab: SettingsTab
 
-    public init(preferencesManager: PreferencesManager = .shared) {
+    public init(
+        preferencesManager: PreferencesManager = .shared,
+        permissionsService: PermissionsServiceProtocol = PermissionsService(),
+        initialTab: SettingsTab = .general,
+        onRelaunchOnboarding: (@MainActor @Sendable () -> Void)? = nil
+    ) {
         self.preferencesManager = preferencesManager
+        self.permissionsService = permissionsService
+        self._selectedTab = State(initialValue: initialTab)
+        self.onRelaunchOnboarding = onRelaunchOnboarding
     }
 
     public var body: some View {
@@ -19,6 +29,15 @@ public struct SettingsView: View {
                     Label(SettingsTab.general.title, systemImage: SettingsTab.general.systemImage)
                 }
                 .tag(SettingsTab.general)
+
+            PermissionsSettingsTabView(
+                permissionsService: permissionsService,
+                onRelaunchOnboarding: onRelaunchOnboarding
+            )
+            .tabItem {
+                Label(SettingsTab.permissions.title, systemImage: SettingsTab.permissions.systemImage)
+            }
+            .tag(SettingsTab.permissions)
 
             RecordingSettingsTabView(preferencesManager: preferencesManager)
                 .tabItem {
@@ -44,7 +63,7 @@ public struct SettingsView: View {
                 }
                 .tag(SettingsTab.stats)
         }
-        .frame(minWidth: 520, idealWidth: 540, maxWidth: 580, minHeight: 460, idealHeight: 520)
+        .frame(minWidth: 540, idealWidth: 560, maxWidth: 620, minHeight: 480, idealHeight: 540)
         .sensoryFeedback(.selection, trigger: selectedTab)
     }
 }

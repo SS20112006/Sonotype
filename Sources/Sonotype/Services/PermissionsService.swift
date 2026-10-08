@@ -138,7 +138,9 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
     public func refreshStatuses() {
         self.microphoneStatus = AVCaptureDevice.authorizationStatus(for: .audio)
         self.speechStatus = SFSpeechRecognizer.authorizationStatus()
-        self.isAccessibilityAuthorized = AXIsProcessTrusted()
+        let promptKey = "AXTrustedCheckOptionPrompt" as CFString
+        let options = [promptKey: kCFBooleanFalse as Any] as CFDictionary
+        self.isAccessibilityAuthorized = AXIsProcessTrustedWithOptions(options)
     }
 
     /// Inicia temporizador de monitorização periódica durante os passos de Onboarding ou ecrã de Definições.
@@ -194,14 +196,10 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
     /// Verifica se a aplicação é confiável na API de Acessibilidade do macOS.
     /// Se `prompt` for `true`, o macOS exibe o diálogo nativo do sistema a solicitar autorização.
     public func checkAccessibilityPermission(prompt: Bool = false) -> Bool {
-        let trusted: Bool
-        if prompt {
-            let key = "AXTrustedCheckOptionPrompt" as CFString
-            let options = [key: kCFBooleanTrue as Any] as CFDictionary
-            trusted = AXIsProcessTrustedWithOptions(options)
-        } else {
-            trusted = AXIsProcessTrusted()
-        }
+        let promptKey = "AXTrustedCheckOptionPrompt" as CFString
+        let value = prompt ? kCFBooleanTrue : kCFBooleanFalse
+        let options = [promptKey: value as Any] as CFDictionary
+        let trusted = AXIsProcessTrustedWithOptions(options)
         self.isAccessibilityAuthorized = trusted
         return trusted
     }

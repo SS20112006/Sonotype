@@ -38,6 +38,13 @@ final class SettingsViewsTests: XCTestCase {
         XCTAssertNotNil(tab.body)
     }
 
+    func testPermissionsSettingsTabViewInitialization() {
+        let mockService = MockPermissionsService()
+        let tab = PermissionsSettingsTabView(permissionsService: mockService)
+        XCTAssertNotNil(tab.body)
+        XCTAssertEqual(tab.permissionsService.isAccessibilityAuthorized, false)
+    }
+
     func testRecordingSettingsTabViewInitialization() {
         let tab = RecordingSettingsTabView(preferencesManager: preferencesManager)
         XCTAssertNotNil(tab.body)
@@ -246,7 +253,11 @@ final class SettingsViewsTests: XCTestCase {
 
     func testAppDelegateOpenSettingsWindow() {
         let appDelegate = AppDelegate()
-        appDelegate.setupCoreServices(preferencesManager: preferencesManager)
+        let mockPermissions = MockPermissionsService()
+        appDelegate.setupCoreServices(
+            preferencesManager: preferencesManager,
+            permissionsService: mockPermissions
+        )
 
         // Acionar abertura da janela de definições
         appDelegate.openSettingsWindow()
@@ -269,6 +280,91 @@ final class SettingsViewsTests: XCTestCase {
             XCTAssertFalse(tab.systemImage.isEmpty)
             XCTAssertEqual(tab.id, tab.rawValue)
         }
+        XCTAssertEqual(SettingsTab.permissions.title, "Permissões")
+        XCTAssertEqual(SettingsTab.permissions.systemImage, "lock.shield")
+        XCTAssertEqual(SettingsTab.permissions.id, "permissions")
+    }
+
+    func testPermissionsSettingsCoordinatorLifecycleAndActions() async {
+        let mock = MockPermissionsService()
+        var relaunchCalled = false
+        let coordinator = PermissionsSettingsCoordinator(
+            permissionsService: mock,
+            onRelaunchOnboarding: {
+                relaunchCalled = true
+            }
+        )
+
+        XCTAssertFalse(coordinator.allPermissionsAuthorized)
+        XCTAssertEqual(coordinator.pendingCount, 2) // mock has mic: notDetermined, speech: authorized, ax: false
+
+        // Testar refreshStatuses
+        mock.microphoneStatus = .authorized
+        mock.speechStatus = .authorized
+        mock.isAccessibilityAuthorized = true
+        coordinator.refreshStatuses()
+
+        XCTAssertTrue(coordinator.isMicrophoneAuthorized)
+        XCTAssertTrue(coordinator.isSpeechAuthorized)
+        XCTAssertTrue(coordinator.isAccessibilityAuthorized)
+        XCTAssertTrue(coordinator.allPermissionsAuthorized)
+        XCTAssertEqual(coordinator.pendingCount, 0)
+        XCTAssertNotNil(coordinator.lastRefreshedAt)
+
+        // Testar pedidos de acesso
+        mock.microphoneStatus = .notDetermined
+        await coordinator.requestMicrophoneAccess()
+        XCTAssertEqual(mock.requestMicrophoneAccessCallCount, 1)
+
+        await coordinator.requestSpeechAccess()
+        XCTAssertEqual(mock.requestSpeechAccessCallCount, 1)
+
+        coordinator.requestAccessibilityAccess()
+        XCTAssertEqual(mock.checkAccessibilityCallCount, 1)
+
+        // Testar abertura de definições
+        coordinator.openSystemSettings(for: .microphone)
+        XCTAssertEqual(mock.openSystemSettingsCallCount, 1)
+        XCTAssertEqual(mock.lastOpenedSettingsPane, .microphone)
+
+        // Testar polling
+        coordinator.startPolling()
+        XCTAssertEqual(mock.startPollingCallCount, 1)
+        coordinator.stopPolling()
+        XCTAssertEqual(mock.stopPollingCallCount, 1)
+
+        // Testar relançamento de onboarding
+        coordinator.relaunchOnboarding()
+        XCTAssertTrue(relaunchCalled)
+    }
+
+    func testSettingsViewWithInitialTabPermissions() {
+        let mock = MockPermissionsService()
+        var didRelaunch = false
+        let settingsView = SettingsView(
+            preferencesManager: preferencesManager,
+            permissionsService: mock,
+            initialTab: .permissions,
+            onRelaunchOnboarding: { didRelaunch = true }
+        )
+
+        XCTAssertNotNil(settingsView.body)
+        XCTAssertEqual(settingsView.selectedTab, .permissions)
+        settingsView.onRelaunchOnboarding?()
+        XCTAssertTrue(didRelaunch)
+    }
+
+    func testAppDelegateOpenSettingsWindowWithSelectedTab() {
+        let appDelegate = AppDelegate()
+        let mockPermissions = MockPermissionsService()
+        appDelegate.setupCoreServices(
+            preferencesManager: preferencesManager,
+            permissionsService: mockPermissions
+        )
+
+        appDelegate.openSettingsWindow(selectedTab: .permissions)
+        XCTAssertNotNil(appDelegate.settingsWindow)
+        XCTAssertEqual(appDelegate.settingsWindow?.title, "Definições")
     }
 
     func testKeyCapViewRendering() {
@@ -298,9 +394,11 @@ final class SettingsViewsTests: XCTestCase {
     func testMenuBarManagerOpenSettingsIntegration() {
         let appDelegate = AppDelegate()
         let menuBarManager = MenuBarExtraManager()
+        let mockPermissions = MockPermissionsService()
         appDelegate.setupCoreServices(
             preferencesManager: preferencesManager,
-            menuBarManager: menuBarManager
+            menuBarManager: menuBarManager,
+            permissionsService: mockPermissions
         )
 
         // Acionar onOpenSettings do menuBarManager deve abrir a janela de definições

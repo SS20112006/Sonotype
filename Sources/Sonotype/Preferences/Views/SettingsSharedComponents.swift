@@ -4,6 +4,7 @@ import SwiftUI
 /// Identificador tipado e enumerado das abas de definições do Sonotype.
 public enum SettingsTab: String, CaseIterable, Identifiable, Sendable {
     case general
+    case permissions
     case recording
     case textLanguage
     case clipboard
@@ -15,6 +16,8 @@ public enum SettingsTab: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .general:
             return "Geral"
+        case .permissions:
+            return "Permissões"
         case .recording:
             return "Gravação"
         case .textLanguage:
@@ -30,6 +33,8 @@ public enum SettingsTab: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .general:
             return "gearshape"
+        case .permissions:
+            return "lock.shield"
         case .recording:
             return "waveform.badge.mic"
         case .textLanguage:

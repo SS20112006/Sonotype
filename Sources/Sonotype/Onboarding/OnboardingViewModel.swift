@@ -45,6 +45,10 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
     @Published public var isTestingSpeech: Bool = false
     @Published public var errorMessage: String? = nil
 
+    @Published public var isAccessibilityAuthorized: Bool = false
+    @Published public var isMicrophoneAuthorized: Bool = false
+    @Published public var isSpeechAuthorized: Bool = false
+
     /// Flag para ambientes de teste unitário onde permissões do SO não podem ser concedidas fisicamente.
     public var bypassPermissionsForTesting: Bool = false
 
@@ -66,6 +70,9 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
         self.permissionsService = permissionsService
         self.preferencesManager = preferencesManager
         self.bypassPermissionsForTesting = bypassPermissionsForTesting
+        self.isAccessibilityAuthorized = permissionsService.isAccessibilityAuthorized
+        self.isMicrophoneAuthorized = permissionsService.isMicrophoneAuthorized
+        self.isSpeechAuthorized = permissionsService.isSpeechAuthorized
 
         setupObservers()
     }
@@ -76,8 +83,7 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                self.permissionsService.refreshStatuses()
-                self.objectWillChange.send()
+                self.refreshStatuses()
             }
             .store(in: &cancellables)
 
@@ -86,7 +92,8 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
             permissionsObservable.objectWillChange
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in
-                    self?.objectWillChange.send()
+                    guard let self = self else { return }
+                    self.refreshStatuses()
                 }
                 .store(in: &cancellables)
         }
@@ -105,6 +112,9 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
     /// Atualiza imediatamente os estados das permissões de sistema consultando o serviço.
     public func refreshStatuses() {
         permissionsService.refreshStatuses()
+        self.isAccessibilityAuthorized = permissionsService.isAccessibilityAuthorized
+        self.isMicrophoneAuthorized = permissionsService.isMicrophoneAuthorized
+        self.isSpeechAuthorized = permissionsService.isSpeechAuthorized
         objectWillChange.send()
     }
 
@@ -128,9 +138,10 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
 
         switch currentStep {
         case .microphone:
-            return permissionsService.isMicrophoneAuthorized
+            return (isMicrophoneAuthorized || permissionsService.isMicrophoneAuthorized) &&
+                   (isSpeechAuthorized || permissionsService.isSpeechAuthorized)
         case .accessibility:
-            return permissionsService.isAccessibilityAuthorized
+            return isAccessibilityAuthorized || permissionsService.isAccessibilityAuthorized
         case .playground:
             return true
         }
@@ -167,12 +178,17 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
 
     // MARK: - Ações de Permissão
 
-    /// Solicita acesso ao microfone.
+    /// Solicita acesso ao microfone e ao reconhecimento de fala.
     public func requestMicrophoneAccess() async {
         errorMessage = nil
-        let granted = await permissionsService.requestMicrophoneAccess()
-        if !granted && !bypassPermissionsForTesting {
+        let micGranted = await permissionsService.requestMicrophoneAccess()
+        let speechGranted = await permissionsService.requestSpeechAccess()
+        refreshStatuses()
+
+        if !micGranted && !bypassPermissionsForTesting {
             errorMessage = "Acesso ao microfone recusado. Por favor, ative nas Definições do Sistema."
+        } else if !speechGranted && !bypassPermissionsForTesting {
+            errorMessage = "Acesso ao reconhecimento de fala pendente ou recusado. Por favor, ative nas Definições do Sistema."
         }
     }
 
@@ -180,6 +196,7 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
     public func requestAccessibilityAccess() {
         errorMessage = nil
         let granted = permissionsService.checkAccessibilityPermission(prompt: true)
+        refreshStatuses()
         if !granted && !bypassPermissionsForTesting {
             errorMessage = "Acesso à Acessibilidade pendente. Ative o Sonotype nas Definições do Sistema."
         }

@@ -20,6 +20,7 @@
 | **09** | [#9](https://github.com/SS20112006/Sonotype/issues/9) | [Dashboard com Barra Lateral (Histórico & Dicionário)](#tarefa-09-dashboard-com-barra-lateral-histórico--dicionário) | 🚀 Trio Full-Stack Feature | `apple-hig-specialist`, `fullstack-engineer`, `qa-security-auditor`, `devops-release` | `swiftui-patterns`, `apple-hig-auditor`, `ponytail`, `verification-before-completion`, `semantic-git-workflow` | ✅ CONCLUÍDO |
 | **10** | [#10](https://github.com/SS20112006/Sonotype/issues/10) | [Painel de Definições & Armazenamento de Preferências](#tarefa-10-painel-de-definições--armazenamento-de-preferências) | 🎨 Trio UI/UX & Native Desktop | `apple-hig-specialist`, `fullstack-engineer`, `silent-failure-hunter`, `devops-release` | `swiftui-patterns`, `apple-hig-auditor`, `error-handling`, `verification-before-completion`, `semantic-git-workflow` | ✅ CONCLUÍDO |
 | **11** | [#11](https://github.com/SS20112006/Sonotype/issues/11) | [Experiência de Onboarding & Permissões](#tarefa-11-experiência-de-onboarding--permissões) | 🎨 Trio UI/UX & Native Desktop | `apple-hig-specialist`, `fullstack-engineer`, `qa-security-auditor`, `devops-release` | `apple-hig-auditor`, `swiftui-patterns`, `systematic-debugging`, `verification-before-completion`, `semantic-git-workflow` | ✅ CONCLUÍDO |
+| **11B** | [#11B](https://github.com/SS20112006/Sonotype/issues) | [Área de Gestão & Auditoria de Permissões nas Definições](#tarefa-11b-área-de-gestão--auditoria-de-permissões-nas-definições) | 🎨 Trio UI/UX & Native Desktop | `frontend-design-specialist`, `fullstack-engineer`, `qa-security-auditor` | `apple-hig-auditor`, `swiftui-patterns`, `verification-before-completion` | ✅ CONCLUÍDO |
 | **12** | [#12](https://github.com/SS20112006/Sonotype/issues/12) | [Hardening de Produção, Assinatura & Packaging](#tarefa-12-hardening-de-produção-assinatura--packaging) | 🏛️ Trio Arquitetura, Performance & Dívida | `qa-security-auditor`, `complexity-auditor`, `performance-engineer`, `silent-failure-hunter`, `devops-release` | `production-readiness-verifier`, `ponytail-audit`, `performance-profiling-benchmark`, `finishing-a-development-branch`, `semantic-git-workflow` | ⏳ PENDENTE |
 
 ---
@@ -207,6 +208,32 @@
   - Coordenador de ciclo de vida de arranque condicional no `AppDelegate` / `SonotypeApp`.
   - Testes unitários cobrindo o fluxo de onboarding.
 - **Critério de Aceitação**: Em arranque limpo, o onboarding surge automaticamente e só permite concluir com permissões concedidas; não volta a surgir em execuções posteriores.
+
+---
+
+### Tarefa 11B: Área de Gestão & Auditoria de Permissões nas Definições
+- **Objetivo**: Implementar uma aba dedicada de "Permissões" no painel de Definições (`SettingsView` > `SettingsTab.permissions`), permitindo aos utilizadores auditar, refrescar e gerir as permissões vitais do sistema (Microfone, Reconhecimento de Fala e Acessibilidade) a qualquer momento, bem como reabrir o assistente de Onboarding guiado.
+- **Subagentes Atribuídos**:
+  - `frontend-design-specialist`: Criação da visualização nativa de auditoria (`PermissionsSettingsTabView`):
+    - Constrói a aba com cartões de estado semânticos e indicadores visuais (SF Symbols, cores de contraste WCAG AA, tipografia SF Pro).
+    - Botões para "Solicitar Acesso", "Abrir Definições do Sistema" e "Verificar Novamente".
+    - Botão de ação secundária para "Reabrir Assistente de Onboarding".
+  - `fullstack-engineer`: Integração dos serviços de permissão com as Definições:
+    - Adiciona `case permissions` a `SettingsTab` com ícone `lock.shield`.
+    - Atualiza `SettingsView` para injetar e observar `PermissionsServiceProtocol`.
+    - Liga o ciclo de vida do `AppDelegate` para passar a instância de `PermissionsService` para a janela de Definições.
+    - Suporta abertura direta na aba de permissões quando necessário.
+  - `qa-security-auditor`: Verificação de tipos estritos, concorrência e testes unitários cobrindo a nova aba e as transições de permissão.
+- **Skills Obrigatórias**:
+  - `apple-hig-auditor`: Design HIG, materiais semânticos, 44x44pt touch targets e feedback háptico.
+  - `swiftui-patterns`: Composição limpa de formulários e listas com reatividade `@ObservedObject`.
+  - `verification-before-completion`: Execução de suite de testes completa sem regressões.
+- **Entregáveis**:
+  - `PermissionsSettingsTabView.swift` em `Sources/Sonotype/Preferences/Views/`.
+  - Enum `SettingsTab.permissions` em `SettingsSharedComponents.swift`.
+  - `SettingsView.swift` e `SonotypeApp.swift` atualizados com injeção de dependências.
+  - Testes unitários atualizados em `SettingsViewTests.swift`.
+- **Critério de Aceitação**: O utilizador pode aceder às Definições > Permissões, visualizar o estado atual de cada uma das 3 permissões, forçar a atualização imediata através de "Verificar Novamente", abrir as Definições do macOS correspondentes e relançar o Onboarding.
 
 ---
 

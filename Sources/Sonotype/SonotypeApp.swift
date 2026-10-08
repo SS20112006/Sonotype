@@ -535,13 +535,30 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
     }
 
     /// Abre a janela de definições do Sonotype.
-    /// Instancia ou foca diretamente a janela dedicada NSWindow contendo SettingsView(preferencesManager: manager).
-    public func openSettingsWindow() {
+    /// Instancia ou foca diretamente a janela dedicada NSWindow contendo SettingsView.
+    public func openSettingsWindow(selectedTab: SettingsTab? = nil) {
         guard let app = NSApp else { return }
         app.activate(ignoringOtherApps: true)
 
-        // Se a janela dedicada já existir, centraliza-a e traz para a frente
+        let targetTab = selectedTab ?? .general
+        let manager = self.preferencesManager ?? .shared
+        let permService = self.permissionsService ?? PermissionsService()
+
+        // Se a janela dedicada já existir, atualiza se necessário, centraliza-a e traz para a frente
         if let window = settingsWindow {
+            if let specificTab = selectedTab {
+                let settingsView = SettingsView(
+                    preferencesManager: manager,
+                    permissionsService: permService,
+                    initialTab: specificTab,
+                    onRelaunchOnboarding: { [weak self] in
+                        self?.settingsWindow?.close()
+                        self?.settingsWindow = nil
+                        self?.openOnboardingWindow()
+                    }
+                )
+                window.contentViewController = NSHostingController(rootView: settingsView)
+            }
             if window.isMiniaturized {
                 window.deminiaturize(nil)
             }
@@ -553,14 +570,22 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         }
 
         // Instancia a janela dedicada com SettingsView
-        let manager = self.preferencesManager ?? .shared
-        let settingsView = SettingsView(preferencesManager: manager)
+        let settingsView = SettingsView(
+            preferencesManager: manager,
+            permissionsService: permService,
+            initialTab: targetTab,
+            onRelaunchOnboarding: { [weak self] in
+                self?.settingsWindow?.close()
+                self?.settingsWindow = nil
+                self?.openOnboardingWindow()
+            }
+        )
         let hostingController = NSHostingController(rootView: settingsView)
 
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Definições"
         window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 540, height: 480))
+        window.setContentSize(NSSize(width: 560, height: 520))
         window.center()
         window.isReleasedWhenClosed = false
         self.settingsWindow = window
@@ -598,7 +623,14 @@ struct SonotypeApp: App {
         .defaultSize(width: 850, height: 580)
 
         Settings {
-            SettingsView(preferencesManager: appDelegate.preferencesManager ?? .shared)
+            SettingsView(
+                preferencesManager: appDelegate.preferencesManager ?? .shared,
+                permissionsService: (appDelegate.permissionsService as? PermissionsService) ?? PermissionsService(),
+                initialTab: .general,
+                onRelaunchOnboarding: {
+                    appDelegate.openOnboardingWindow()
+                }
+            )
         }
     }
 }

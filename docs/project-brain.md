@@ -76,17 +76,16 @@ O plano completo de desenvolvimento de ponta a ponta encontra-se formalizado em 
 9. **Tarefa 09**: Dashboard com Barra Lateral (Histórico, Dicionário, Estatísticas, Exportação).
 10. **Tarefa 10**: Painel de Definições & Armazenamento de Preferências.
 11. **Tarefa 11**: Experiência de Onboarding & Permissões (3 passos com teste interativo).
-12. **Tarefa 12**: Hardening de Produção, Assinatura & Packaging (`~/Downloads/Sonotype.app`).
+12. **Tarefa 11B**: Gestão & Auditoria de Permissões nas Definições (Aba Permissões com auditoria em tempo real, refresh e relançamento do Onboarding).
+13. **Tarefa 12**: Hardening de Produção, Assinatura & Packaging (`~/Downloads/Sonotype.app`).
 
 ---
 
 ## 5. Estado Atual & Backlog no Git
-- **Fase**: Tarefas 01 a 11 Concluídas e Verificadas com Sucesso (210 testes unitários e de integração a passar, 0 falhas).
+- **Fase**: Tarefas 01 a 11B Concluídas e Verificadas com Sucesso (245 testes unitários e de integração a passar, 0 falhas).
 - **Backlog Sincronizado no Git**:
-  - Todas as 12 tarefas do roadmap estão rastreadas como Issues no GitHub ([`SS20112006/Sonotype`](https://github.com/SS20112006/Sonotype/issues)).
-  - **Issues Concluídas (#1 a #11)**: Tarefas 01 a 11 formalmente fechadas e validadas.
-  - **Issues Ativas no Backlog (#12)**:
-    - [#12: Tarefa 12: Hardening & Packaging](https://github.com/SS20112006/Sonotype/issues/12) — 🏛️ **Trio Arquitetura, Performance & Dívida Técnica** (`qa-security-auditor`, `complexity-auditor`, `performance-engineer`, `silent-failure-hunter`, `devops-release`).
+  - Tarefas 01 a 11B formalmente validadas (245 testes unitários a passar).
+  - **Tarefa Seguinte (#12)**: Hardening de Produção, Assinatura & Packaging ([Issue #12](https://github.com/SS20112006/Sonotype/issues/12)).
 - **Próximo Passo**: Iniciar a **Tarefa 12: Hardening de Produção, Assinatura & Packaging** ([Issue #12](https://github.com/SS20112006/Sonotype/issues/12)) — a tarefa final do projeto — através do 🏛️ **Trio Arquitetura, Performance & Dívida Técnica**.
 
 ---
