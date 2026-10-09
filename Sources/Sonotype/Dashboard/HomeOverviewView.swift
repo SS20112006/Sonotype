@@ -19,14 +19,14 @@ public struct HomeOverviewView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 18) {
                 // 1. Cabeçalho de Boas-Vindas
                 welcomeHeader
 
                 // 2. Painéis Principais: Resumo de Produtividade + Matriz de Atividade Estilo GitHub
                 HStack(alignment: .top, spacing: 16) {
                     productivitySummaryCard
-                        .frame(width: 260)
+                        .frame(minWidth: 260, idealWidth: 290, maxWidth: 330)
 
                     githubStyleActivityCard
                         .frame(maxWidth: .infinity)
@@ -38,7 +38,9 @@ public struct HomeOverviewView: View {
                 // 4. Painel de Transcrições Recentes
                 recentTranscriptionsCard
             }
-            .padding(24)
+            .padding(20)
+            .frame(maxWidth: 1060)
+            .frame(maxWidth: .infinity, alignment: .top)
         }
         .background(.thinMaterial)
         .onAppear {
@@ -52,30 +54,30 @@ public struct HomeOverviewView: View {
 
     private var welcomeHeader: some View {
         HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
                     Text("Visão Geral")
-                        .font(.system(size: 24, weight: .bold, design: .default)) // SF Pro Display >= 20pt
-                        .tracking(0.38)
+                        .font(.system(size: 20, weight: .bold, design: .default)) // SF Pro Display >= 20pt
+                        .tracking(0.35)
                         .foregroundStyle(.primary)
 
                     // Badge de Estado Ativo
                     HStack(spacing: 4) {
                         Circle()
                             .fill(Color.green)
-                            .frame(width: 8, height: 8)
+                            .frame(width: 7, height: 7)
                         Text("Pronto")
                             .font(.system(size: 11, weight: .semibold, design: .default))
                             .foregroundStyle(Color.green)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2.5)
                     .background(Color.green.opacity(0.12), in: Capsule())
                 }
 
                 Text("Acompanhe o seu ritmo de ditado por voz, produtividade e atalhos rápidos.")
-                    .font(.system(size: 13, weight: .regular, design: .default)) // SF Pro Text <= 19pt
-                    .tracking(-0.08)
+                    .font(.system(size: 12, weight: .regular, design: .default)) // SF Pro Text <= 19pt
+                    .tracking(0.0)
                     .foregroundStyle(.secondary)
             }
 
@@ -84,21 +86,21 @@ public struct HomeOverviewView: View {
             // Botão de Ditar / Instrução de Atalho em Destaque
             HStack(spacing: 6) {
                 Image(systemName: "waveform")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(Color.accentColor)
 
                 Text("Prima")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 3) {
                     Text("⌥")
-                        .font(.system(size: 12, weight: .bold, design: .monospaced))
-                    Text("Espaço")
                         .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    Text("Espaço")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
                 }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2.5)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
@@ -106,11 +108,11 @@ public struct HomeOverviewView: View {
                 )
 
                 Text("em qualquer app")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -193,7 +195,7 @@ public struct HomeOverviewView: View {
     // MARK: - 3. Matriz de Atividade Estilo GitHub (Heat Grid)
 
     private var githubStyleActivityCard: some View {
-        let days = recent35Days()
+        let days = recent77Days()
         let statsDict = Dictionary(uniqueKeysWithValues: viewModel.dailyStats.map { ($0.dayKey, $0) })
         let currentStreak = viewModel.currentStreakDays
         let activeDays = viewModel.activeDaysCount
@@ -231,59 +233,85 @@ public struct HomeOverviewView: View {
 
             Divider()
 
-            // Matriz de Quadrados dos Últimos 35 Dias (5 Semanas x 7 Dias)
-            VStack(alignment: .leading, spacing: 8) {
-                // Grelha Horizontal: 5 colunas de 7 dias ou layout fluído de semanas
-                HStack(alignment: .top, spacing: 6) {
-                    ForEach(0..<5, id: \.self) { weekIndex in
-                        VStack(spacing: 6) {
-                            ForEach(0..<7, id: \.self) { dayOfWeekIndex in
-                                let index = (weekIndex * 7) + dayOfWeekIndex
-                                if index < days.count {
-                                    let date = days[index]
-                                    let dayKey = SessionStat.makeDayKey(from: date)
-                                    let wordCount = statsDict[dayKey]?.totalWords ?? 0
+            // Grelha e Métricas de Atividade Recente
+            HStack(alignment: .top, spacing: 18) {
+                // Matriz de Quadrados dos Últimos 77 Dias (11 Semanas x 7 Dias)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 5) {
+                        ForEach(0..<11, id: \.self) { weekIndex in
+                            VStack(spacing: 5) {
+                                ForEach(0..<7, id: \.self) { dayOfWeekIndex in
+                                    let index = (weekIndex * 7) + dayOfWeekIndex
+                                    if index < days.count {
+                                        let date = days[index]
+                                        let dayKey = SessionStat.makeDayKey(from: date)
+                                        let wordCount = statsDict[dayKey]?.totalWords ?? 0
 
-                                    activityCell(
-                                        date: date,
-                                        dayKey: dayKey,
-                                        wordCount: wordCount
-                                    )
+                                        activityCell(
+                                            date: date,
+                                            dayKey: dayKey,
+                                            wordCount: wordCount
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
 
-                // Legenda de Intensidade no Rodapé
-                HStack(spacing: 6) {
-                    Text("Menos")
-                        .font(.system(size: 10, weight: .regular))
-                        .foregroundStyle(.secondary)
+                    // Legenda de Intensidade no Rodapé
+                    HStack(spacing: 6) {
+                        Text("Menos")
+                            .font(.system(size: 10, weight: .regular))
+                            .foregroundStyle(.secondary)
 
-                    heatLegendSquare(color: Color.secondary.opacity(0.12))
-                    heatLegendSquare(color: Color.accentColor.opacity(0.35))
-                    heatLegendSquare(color: Color.accentColor.opacity(0.65))
-                    heatLegendSquare(color: Color.accentColor)
+                        heatLegendSquare(color: Color.secondary.opacity(0.12))
+                        heatLegendSquare(color: Color.accentColor.opacity(0.35))
+                        heatLegendSquare(color: Color.accentColor.opacity(0.65))
+                        heatLegendSquare(color: Color.accentColor)
 
-                    Text("Mais palavras")
-                        .font(.system(size: 10, weight: .regular))
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    if let hovered = hoveredDayKey, let stat = statsDict[hovered] {
-                        Text("\(hovered): \(stat.totalWords) palavras (\(stat.totalTranscriptions) ditados)")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Color.accentColor)
-                    } else if let hovered = hoveredDayKey {
-                        Text("\(hovered): Sem atividade")
-                            .font(.system(size: 11, weight: .regular))
+                        Text("Mais")
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(.secondary)
                     }
+                    .padding(.top, 2)
                 }
-                .padding(.top, 4)
+
+                Divider()
+                    .frame(maxHeight: 125)
+
+                // Destaques de Ritmo Recente
+                VStack(alignment: .leading, spacing: 10) {
+                    activityInsightRow(
+                        title: "Total no Período",
+                        value: "\(recentWordsCount(statsDict: statsDict, days: days)) palavras",
+                        icon: "character.textbox"
+                    )
+
+                    activityInsightRow(
+                        title: "Média / Dia Ativo",
+                        value: formattedAverageActiveWords(statsDict: statsDict, days: days),
+                        icon: "chart.line.uptrend.xyaxis"
+                    )
+
+                    activityInsightRow(
+                        title: "Pico Diário",
+                        value: formattedPeakDayWords(statsDict: statsDict, days: days),
+                        icon: "trophy.fill"
+                    )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if let hovered = hoveredDayKey, let stat = statsDict[hovered] {
+                Text("\(hovered): \(stat.totalWords) palavras (\(stat.totalTranscriptions) ditados)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.top, 2)
+            } else if let hovered = hoveredDayKey {
+                Text("\(hovered): Sem atividade")
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
             }
         }
         .padding(16)
@@ -596,16 +624,64 @@ public struct HomeOverviewView: View {
 
     // MARK: - Formatadores e Helpers
 
-    private func recent35Days() -> [Date] {
+    private func activityInsightRow(title: String, value: String, icon: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
+            }
+        }
+    }
+
+    private func recentWordsCount(statsDict: [String: SessionStat], days: [Date]) -> Int {
+        days.reduce(0) { total, date in
+            let key = SessionStat.makeDayKey(from: date)
+            return total + (statsDict[key]?.totalWords ?? 0)
+        }
+    }
+
+    private func formattedAverageActiveWords(statsDict: [String: SessionStat], days: [Date]) -> String {
+        let activeCounts = days.compactMap { date -> Int? in
+            let key = SessionStat.makeDayKey(from: date)
+            guard let words = statsDict[key]?.totalWords, words > 0 else { return nil }
+            return words
+        }
+        guard !activeCounts.isEmpty else { return "0 / dia" }
+        let avg = activeCounts.reduce(0, +) / activeCounts.count
+        return "\(avg) / dia"
+    }
+
+    private func formattedPeakDayWords(statsDict: [String: SessionStat], days: [Date]) -> String {
+        let peak = days.map { date in
+            let key = SessionStat.makeDayKey(from: date)
+            return statsDict[key]?.totalWords ?? 0
+        }.max() ?? 0
+        return peak > 0 ? "\(peak) palavras" : "0 palavras"
+    }
+
+    private func recent77Days() -> [Date] {
         let calendar = Calendar.current
         let today = Date()
         var dates: [Date] = []
-        for offset in (0..<35).reversed() {
+        for offset in (0..<77).reversed() {
             if let date = calendar.date(byAdding: .day, value: -offset, to: today) {
                 dates.append(date)
             }
         }
         return dates
+    }
+
+    private func recent35Days() -> [Date] {
+        Array(recent77Days().suffix(35))
     }
 
     private func formattedTimeSavedString(minutes: Double) -> String {

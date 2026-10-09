@@ -258,19 +258,23 @@ public struct HistoryListView: View {
 
                 // Visualizador de Texto Completo
                 ScrollView {
-                    Text(record.text)
-                        .font(.system(size: 15, weight: .regular, design: .default)) // SF Pro Text <= 19pt
-                        .tracking(-0.23)
-                        .lineSpacing(6)
-                        .foregroundStyle(.primary)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(20)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .strokeBorder(.separator, lineWidth: 0.5)
-                        )
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(record.text)
+                            .font(.system(size: 15, weight: .regular, design: .default)) // SF Pro Text <= 19pt
+                            .tracking(-0.23)
+                            .lineSpacing(6)
+                            .foregroundStyle(.primary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(20)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .strokeBorder(.separator, lineWidth: 0.5)
+                            )
+                    }
+                    .frame(maxWidth: 920)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)

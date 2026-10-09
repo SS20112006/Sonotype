@@ -202,23 +202,24 @@ public struct DashboardWindowView: View {
 
     @ViewBuilder
     private var settingsDetailPane: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Definições")
-                        .font(.system(size: 24, weight: .bold, design: .default)) // SF Pro Display >= 20pt
-                        .tracking(0.38)
+                        .font(.system(size: 18, weight: .bold, design: .default)) // SF Pro Text <= 19pt
+                        .tracking(-0.2)
                         .foregroundStyle(.primary)
 
                     Text("Personalize atalhos, reconhecimento de fala, permissões e formatação.")
-                        .font(.system(size: 13, weight: .regular, design: .default)) // SF Pro Text <= 19pt
-                        .tracking(-0.08)
+                        .font(.system(size: 12, weight: .regular, design: .default)) // SF Pro Text <= 19pt
+                        .tracking(0.0)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 2)
 
             SettingsView(
                 preferencesManager: viewModel.preferencesManager ?? .shared,

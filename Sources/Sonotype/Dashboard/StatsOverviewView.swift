@@ -13,22 +13,22 @@ public struct StatsOverviewView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 18) {
                 // Título da Página com SF Pro Display (>= 20pt)
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Estatísticas & Produtividade")
-                        .font(.system(size: 22, weight: .bold, design: .default)) // SF Pro Display >= 20pt
+                        .font(.system(size: 20, weight: .bold, design: .default)) // SF Pro Display >= 20pt
                         .tracking(0.35)
                         .foregroundStyle(.primary)
 
                     Text("Métricas acumuladas de utilização e tempo poupado com o ditado por voz offline.")
-                        .font(.system(size: 13, weight: .regular, design: .default)) // SF Pro Text <= 19pt
-                        .tracking(-0.08)
+                        .font(.system(size: 12, weight: .regular, design: .default)) // SF Pro Text <= 19pt
+                        .tracking(0.0)
                         .foregroundStyle(.secondary)
                 }
 
-                // Grelha Principal de Métricas (2x2)
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)], spacing: 16) {
+                // Grelha Principal de Métricas Adaptativa
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220, maximum: 340), spacing: 16)], spacing: 16) {
                     // 1. Tempo Poupado
                     statMetricCard(
                         title: "Tempo Poupado Estimado",
@@ -72,7 +72,9 @@ public struct StatsOverviewView: View {
                 // Cartão de Garantia de Privacidade Local
                 privacyGuaranteeCard
             }
-            .padding(24)
+            .padding(20)
+            .frame(maxWidth: 1040)
+            .frame(maxWidth: .infinity, alignment: .top)
         }
         .background(.thinMaterial)
     }

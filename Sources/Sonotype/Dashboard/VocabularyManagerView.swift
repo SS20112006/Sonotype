@@ -28,27 +28,34 @@ public struct VocabularyManagerView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Seletor de Abas no Topo
-            Picker("Secção de Configuração", selection: $selectedTab) {
-                Text("Dicionário Personalizado (\(viewModel.vocabularyEntries.count))").tag(0)
-                Text("Substituições de Voz (\(viewModel.replacementRules.count))").tag(1)
+            // Seletor de Abas no Topo Centrado
+            HStack {
+                Spacer()
+                Picker("Secção de Configuração", selection: $selectedTab) {
+                    Text("Dicionário Personalizado (\(viewModel.vocabularyEntries.count))").tag(0)
+                    Text("Substituições de Voz (\(viewModel.replacementRules.count))").tag(1)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 520)
+                Spacer()
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
             .background(.regularMaterial)
             .overlay(Divider(), alignment: .bottom)
 
             // Conteúdo da Aba Selecionada
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     if selectedTab == 0 {
                         vocabularySection
                     } else {
                         replacementRulesSection
                     }
                 }
-                .padding(24)
+                .padding(20)
+                .frame(maxWidth: 880)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
             .background(.thinMaterial)
         }
@@ -62,17 +69,17 @@ public struct VocabularyManagerView: View {
 
     @ViewBuilder
     private var vocabularySection: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            // Cabeçalho da Secção com SF Pro Display (>= 20pt)
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 16) {
+            // Cabeçalho da Secção
+            VStack(alignment: .leading, spacing: 2) {
                 Text("Vocabulário & Termos Técnicos")
-                    .font(.system(size: 20, weight: .bold, design: .default)) // SF Pro Display >= 20pt
-                    .tracking(0.38)
+                    .font(.system(size: 18, weight: .bold, design: .default)) // SF Pro Text <= 19pt
+                    .tracking(-0.2)
                     .foregroundStyle(.primary)
 
                 Text("Adicione siglas, nomes próprios ou jargão técnico para aumentar a prioridade de correspondência durante a transcrição offline.")
-                    .font(.system(size: 13, weight: .regular, design: .default)) // SF Pro Text <= 19pt
-                    .tracking(-0.08)
+                    .font(.system(size: 12, weight: .regular, design: .default)) // SF Pro Text <= 19pt
+                    .tracking(0.0)
                     .foregroundStyle(.secondary)
             }
 
@@ -234,17 +241,17 @@ public struct VocabularyManagerView: View {
 
     @ViewBuilder
     private var replacementRulesSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            // Cabeçalho da Secção com SF Pro Display (>= 20pt)
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 16) {
+            // Cabeçalho da Secção
+            VStack(alignment: .leading, spacing: 2) {
                 Text("Regras de Substituição de Voz")
-                    .font(.system(size: 20, weight: .bold, design: .default)) // SF Pro Display >= 20pt
-                    .tracking(0.38)
+                    .font(.system(size: 18, weight: .bold, design: .default)) // SF Pro Text <= 19pt
+                    .tracking(-0.2)
                     .foregroundStyle(.primary)
 
                 Text("Defina atalhos falados que são automaticamente expandidos em texto completo (ex: \"meu email\" → \"contacto@sonotype.app\").")
-                    .font(.system(size: 13, weight: .regular, design: .default)) // SF Pro Text <= 19pt
-                    .tracking(-0.08)
+                    .font(.system(size: 12, weight: .regular, design: .default)) // SF Pro Text <= 19pt
+                    .tracking(0.0)
                     .foregroundStyle(.secondary)
             }
 
