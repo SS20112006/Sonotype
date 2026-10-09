@@ -118,15 +118,23 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
     public init(workspace: NSWorkspace = .shared) {
         self.workspace = workspace
         refreshStatuses()
-        setupAppActiveObserver()
+        setupObservers()
     }
 
     deinit {
         // AnyCancellable e Timer são limpos automaticamente no ciclo de vida
     }
 
-    private func setupAppActiveObserver() {
+    private func setupObservers() {
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.refreshStatuses()
+            }
+            .store(in: &cancellables)
+
+        // Escuta eventos globais de alteração da base de dados TCC de Acessibilidade
+        DistributedNotificationCenter.default().publisher(for: NSNotification.Name("com.apple.accessibility.api"))
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.refreshStatuses()
@@ -146,8 +154,7 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
             self.speechStatus = newSpeech
         }
 
-        let checkOptions = ["AXTrustedCheckOptionPrompt": false] as CFDictionary
-        let newAx = AXIsProcessTrustedWithOptions(checkOptions)
+        let newAx = AXIsProcessTrusted()
         if self.isAccessibilityAuthorized != newAx {
             self.isAccessibilityAuthorized = newAx
             Self.logger.info("Estado de acessibilidade atualizado: \(newAx, privacy: .public)")
@@ -208,8 +215,13 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
     /// Se `prompt` for `true`, o macOS exibe o diálogo nativo do sistema a solicitar autorização.
     @discardableResult
     public func checkAccessibilityPermission(prompt: Bool = false) -> Bool {
-        let options = ["AXTrustedCheckOptionPrompt": prompt] as CFDictionary
-        let trusted = AXIsProcessTrustedWithOptions(options)
+        let trusted: Bool
+        if prompt {
+            let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+            trusted = AXIsProcessTrustedWithOptions(options)
+        } else {
+            trusted = AXIsProcessTrusted()
+        }
         if self.isAccessibilityAuthorized != trusted {
             self.isAccessibilityAuthorized = trusted
             Self.logger.info("Acessibilidade verificada (prompt: \(prompt)): \(trusted, privacy: .public)")

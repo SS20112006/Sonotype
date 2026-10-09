@@ -51,13 +51,41 @@ public final class PermissionsSettingsCoordinator: ObservableObject, Sendable {
             }
             .store(in: &cancellables)
 
-        // Se o serviço for um ObservableObject concreto, sincroniza apenas o estado local sem invocar refresh circular
+        // Se o serviço for um ObservableObject concreto, sincroniza o estado através dos publishers das propriedades publicadas
         if let observableService = permissionsService as? PermissionsService {
-            observableService.objectWillChange
+            observableService.$isAccessibilityAuthorized
                 .receive(on: RunLoop.main)
-                .sink { [weak self] _ in
+                .sink { [weak self] isAuth in
                     guard let self = self else { return }
-                    self.syncFromService(triggerFeedback: false)
+                    if self.isAccessibilityAuthorized != isAuth {
+                        self.isAccessibilityAuthorized = isAuth
+                        self.lastRefreshedAt = Date()
+                        self.feedbackTrigger += 1
+                    }
+                }
+                .store(in: &cancellables)
+
+            observableService.$microphoneStatus
+                .receive(on: RunLoop.main)
+                .sink { [weak self] status in
+                    guard let self = self else { return }
+                    let isAuth = (status == .authorized)
+                    if self.isMicrophoneAuthorized != isAuth {
+                        self.isMicrophoneAuthorized = isAuth
+                        self.lastRefreshedAt = Date()
+                    }
+                }
+                .store(in: &cancellables)
+
+            observableService.$speechStatus
+                .receive(on: RunLoop.main)
+                .sink { [weak self] status in
+                    guard let self = self else { return }
+                    let isAuth = (status == .authorized)
+                    if self.isSpeechAuthorized != isAuth {
+                        self.isSpeechAuthorized = isAuth
+                        self.lastRefreshedAt = Date()
+                    }
                 }
                 .store(in: &cancellables)
         }

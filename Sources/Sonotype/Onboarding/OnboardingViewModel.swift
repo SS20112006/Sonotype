@@ -87,13 +87,37 @@ public final class OnboardingViewModel: ObservableObject, Sendable {
             }
             .store(in: &cancellables)
 
-        // Se o serviço de permissões for um ObservableObject, propaga mudanças para a view atualizar a UI sem ciclo recursivo
+        // Se o serviço de permissões for um ObservableObject, sincroniza através dos publishers das propriedades publicadas
         if let permissionsObservable = permissionsService as? PermissionsService {
-            permissionsObservable.objectWillChange
+            permissionsObservable.$isAccessibilityAuthorized
                 .receive(on: RunLoop.main)
-                .sink { [weak self] _ in
+                .sink { [weak self] isAuth in
                     guard let self = self else { return }
-                    self.syncFromService()
+                    if self.isAccessibilityAuthorized != isAuth {
+                        self.isAccessibilityAuthorized = isAuth
+                    }
+                }
+                .store(in: &cancellables)
+
+            permissionsObservable.$microphoneStatus
+                .receive(on: RunLoop.main)
+                .sink { [weak self] status in
+                    guard let self = self else { return }
+                    let isAuth = (status == .authorized)
+                    if self.isMicrophoneAuthorized != isAuth {
+                        self.isMicrophoneAuthorized = isAuth
+                    }
+                }
+                .store(in: &cancellables)
+
+            permissionsObservable.$speechStatus
+                .receive(on: RunLoop.main)
+                .sink { [weak self] status in
+                    guard let self = self else { return }
+                    let isAuth = (status == .authorized)
+                    if self.isSpeechAuthorized != isAuth {
+                        self.isSpeechAuthorized = isAuth
+                    }
                 }
                 .store(in: &cancellables)
         }

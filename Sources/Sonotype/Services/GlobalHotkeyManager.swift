@@ -221,15 +221,25 @@ public final class SystemGlobalHotkeyManager: GlobalHotkeyMonitoring, Sendable {
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                guard let self = self else { return }
-                let currentTrusted = AXIsProcessTrusted()
-                if currentTrusted != self.lastAccessibilityState {
-                    self.lastAccessibilityState = currentTrusted
-                    Self.logger.info("Estado de Acessibilidade alterado para \(currentTrusted, privacy: .public). Reiniciando monitores de atalhos.")
-                    self.restartMonitoring()
-                }
+                self?.checkAccessibilityStateAndRestartIfNeeded()
             }
             .store(in: &cancellables)
+
+        DistributedNotificationCenter.default().publisher(for: NSNotification.Name("com.apple.accessibility.api"))
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.checkAccessibilityStateAndRestartIfNeeded()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func checkAccessibilityStateAndRestartIfNeeded() {
+        let currentTrusted = AXIsProcessTrusted()
+        if currentTrusted != self.lastAccessibilityState {
+            self.lastAccessibilityState = currentTrusted
+            Self.logger.info("Estado de Acessibilidade alterado para \(currentTrusted, privacy: .public). Reiniciando monitores de atalhos.")
+            self.restartMonitoring()
+        }
     }
 
     public func onHotkeyPressed(_ action: @escaping @MainActor @Sendable () -> Void) {

@@ -451,4 +451,27 @@ final class PermissionsAndOnboardingTests: XCTestCase {
         XCTAssertTrue(viewModel.isMicrophoneAuthorized)
         XCTAssertTrue(viewModel.isSpeechAuthorized)
     }
+
+    func testPermissionsSettingsCoordinatorReactiveUpdate() async {
+        let permissionsService = PermissionsService()
+        let coordinator = PermissionsSettingsCoordinator(permissionsService: permissionsService)
+
+        // Inicialmente sincronizado
+        XCTAssertEqual(coordinator.isAccessibilityAuthorized, permissionsService.isAccessibilityAuthorized)
+
+        // Forçar verificação
+        coordinator.refreshStatuses()
+        XCTAssertNotNil(coordinator.lastRefreshedAt)
+    }
+
+    func testDashboardViewModelObservesPermissionsChanges() {
+        let permissionsService = PermissionsService()
+        let viewModel = DashboardViewModel(
+            permissionsService: permissionsService,
+            autoLoad: false
+        )
+
+        XCTAssertEqual(viewModel.isAccessibilityAuthorized, permissionsService.isAccessibilityAuthorized)
+        XCTAssertEqual(viewModel.isMicrophoneAuthorized, permissionsService.isMicrophoneAuthorized)
+    }
 }

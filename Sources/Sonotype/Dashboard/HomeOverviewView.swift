@@ -367,7 +367,7 @@ public struct HomeOverviewView: View {
                 statusItem(
                     title: "Microfone",
                     icon: "mic.fill",
-                    isAuthorized: viewModel.permissionsService?.isMicrophoneAuthorized ?? true,
+                    isAuthorized: viewModel.isMicrophoneAuthorized,
                     authorizedText: "Concedido",
                     unauthorizedText: "Ativar",
                     action: {
@@ -382,7 +382,7 @@ public struct HomeOverviewView: View {
                 statusItem(
                     title: "Acessibilidade",
                     icon: "accessibility.fill",
-                    isAuthorized: viewModel.permissionsService?.isAccessibilityAuthorized ?? true,
+                    isAuthorized: viewModel.isAccessibilityAuthorized,
                     authorizedText: "Concedido",
                     unauthorizedText: "Abrir Definições",
                     action: {

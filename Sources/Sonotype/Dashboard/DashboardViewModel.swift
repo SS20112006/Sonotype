@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 import Observation
 import SwiftData
@@ -68,6 +69,11 @@ public final class DashboardViewModel: Sendable {
     public var selectedRecord: TranscriptionRecord?
     public var errorMessage: String?
 
+    public var isAccessibilityAuthorized: Bool
+    public var isMicrophoneAuthorized: Bool
+    public var isSpeechAuthorized: Bool
+    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
+
     /// Handler opcional para simular ou interceptar a escolha de URL no NSSavePanel em testes
     public var savePanelHandler: (@MainActor (NSSavePanel) -> URL?)?
 
@@ -93,6 +99,32 @@ public final class DashboardViewModel: Sendable {
         self.dailyStats = []
         self.selectedRecord = nil
         self.errorMessage = nil
+        self.isAccessibilityAuthorized = permissionsService?.isAccessibilityAuthorized ?? true
+        self.isMicrophoneAuthorized = permissionsService?.isMicrophoneAuthorized ?? true
+        self.isSpeechAuthorized = permissionsService?.isSpeechAuthorized ?? true
+
+        if let observablePerms = permissionsService as? PermissionsService {
+            observablePerms.$isAccessibilityAuthorized
+                .receive(on: RunLoop.main)
+                .sink { [weak self] auth in
+                    self?.isAccessibilityAuthorized = auth
+                }
+                .store(in: &cancellables)
+
+            observablePerms.$microphoneStatus
+                .receive(on: RunLoop.main)
+                .sink { [weak self] status in
+                    self?.isMicrophoneAuthorized = (status == .authorized)
+                }
+                .store(in: &cancellables)
+
+            observablePerms.$speechStatus
+                .receive(on: RunLoop.main)
+                .sink { [weak self] status in
+                    self?.isSpeechAuthorized = (status == .authorized)
+                }
+                .store(in: &cancellables)
+        }
 
         if autoLoad {
             loadAll()
