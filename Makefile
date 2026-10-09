@@ -32,13 +32,16 @@ local: build
 	@cp .build/release/$(APP_NAME) $(MACOS_DIR)/$(APP_NAME)
 	@cp $(INFO_PLIST) $(CONTENTS_DIR)/Info.plist
 	@if [ -f $(ENTITLEMENTS) ]; then cp $(ENTITLEMENTS) $(RESOURCES_DIR)/; fi
-	@echo "==> A assinar bundle localmente com entitlements..."
-	@codesign --force --deep --sign - --entitlements $(ENTITLEMENTS) $(APP_BUNDLE)
+	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(RESOURCES_DIR)/; fi
+	@if [ -f Resources/SonotypeLogo.png ]; then cp Resources/SonotypeLogo.png $(RESOURCES_DIR)/; fi
+	@if [ -f Resources/AppIcon.png ]; then cp Resources/AppIcon.png $(RESOURCES_DIR)/; fi
+	@echo "==> A assinar bundle localmente com entitlements e designated requirement..."
+	@codesign --force --deep --sign - --entitlements $(ENTITLEMENTS) -r="designated => identifier \"com.sonotype.Sonotype\"" $(APP_BUNDLE)
 	@codesign --verify --deep --strict $(APP_BUNDLE)
 	@echo "==> A instalar bundle em $(DOWNLOADS_APP)..."
 	@if [ -d $(DOWNLOADS_APP) ]; then rm -rf $(DOWNLOADS_APP) 2>/dev/null || osascript -e 'tell application "Finder" to delete POSIX file "$(DOWNLOADS_APP)"' 2>/dev/null || true; fi
 	@cp -R $(APP_BUNDLE) $(DOWNLOADS_APP)
-	@codesign --force --deep --sign - --entitlements $(ENTITLEMENTS) $(DOWNLOADS_APP)
+	@codesign --force --deep --sign - --entitlements $(ENTITLEMENTS) -r="designated => identifier \"com.sonotype.Sonotype\"" $(DOWNLOADS_APP)
 	@codesign --verify --deep --strict $(DOWNLOADS_APP)
 	@echo "==> Executável assinado e pronto em $(DOWNLOADS_APP)"
 

@@ -7,6 +7,7 @@ import os
 
 /// Secções funcionais navegáveis na barra lateral do Dashboard.
 public enum DashboardSection: String, CaseIterable, Identifiable, Sendable {
+    case home = "Início"
     case history = "Histórico"
     case vocabulary = "Dicionário"
     case stats = "Estatísticas"
@@ -60,6 +61,9 @@ public final class DashboardViewModel: Sendable {
     public var vocabularyEntries: [VocabularyEntry]
     public var replacementRules: [WordReplacementRule]
     public var stats: TotalUsageStats
+    public var dailyStats: [SessionStat]
+    public var preferencesManager: PreferencesManager?
+    public var permissionsService: PermissionsServiceProtocol?
     public var selectedRecord: TranscriptionRecord?
     public var errorMessage: String?
 
@@ -71,16 +75,21 @@ public final class DashboardViewModel: Sendable {
     public init(
         repository: PersistenceRepository = .shared,
         pasteboard: NSPasteboard = .general,
+        preferencesManager: PreferencesManager? = nil,
+        permissionsService: PermissionsServiceProtocol? = nil,
         autoLoad: Bool = false
     ) {
         self.repository = repository
         self.pasteboard = pasteboard
-        self.selectedSection = .history
+        self.preferencesManager = preferencesManager
+        self.permissionsService = permissionsService
+        self.selectedSection = .home
         self.searchQuery = ""
         self.historyRecords = []
         self.vocabularyEntries = []
         self.replacementRules = []
         self.stats = TotalUsageStats()
+        self.dailyStats = []
         self.selectedRecord = nil
         self.errorMessage = nil
 
@@ -98,6 +107,7 @@ public final class DashboardViewModel: Sendable {
         loadVocabulary()
         loadReplacementRules()
         loadStats()
+        loadDailyStats()
     }
 
     /// Carrega as transcrições do histórico com filtragem de pesquisa por substring se aplicável.
@@ -142,6 +152,59 @@ public final class DashboardViewModel: Sendable {
             errorMessage = "Falha ao carregar estatísticas: \(error.localizedDescription)"
             Self.logger.error("Erro ao carregar estatísticas: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// Carrega as estatísticas diárias para o heatmap de atividade e cálculo de streaks.
+    public func loadDailyStats() {
+        do {
+            dailyStats = try repository.fetchDailyStats(limit: 35)
+        } catch {
+            Self.logger.error("Falha ao carregar estatísticas diárias: \(error.localizedDescription, privacy: .public)")
+            dailyStats = []
+        }
+    }
+
+    /// Retorna os dias consecutivos ativos de utilização (streak atual).
+    public var currentStreakDays: Int {
+        let calendar = Calendar.current
+        let todayKey = SessionStat.makeDayKey(from: Date(), calendar: calendar)
+        let statsByDay = Dictionary(uniqueKeysWithValues: dailyStats.map { ($0.dayKey, $0) })
+
+        var streak = 0
+        var checkDate = Date()
+
+        // Se hoje ainda não houver ditados, verifica se ontem houve para manter streak ativo
+        if let todayStat = statsByDay[todayKey], todayStat.totalWords > 0 {
+            streak += 1
+            checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
+        } else {
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
+            let yesterdayKey = SessionStat.makeDayKey(from: yesterday, calendar: calendar)
+            if let yStat = statsByDay[yesterdayKey], yStat.totalWords > 0 {
+                streak += 1
+                checkDate = calendar.date(byAdding: .day, value: -2, to: checkDate) ?? checkDate
+            } else {
+                return 0
+            }
+        }
+
+        while true {
+            let dayKey = SessionStat.makeDayKey(from: checkDate, calendar: calendar)
+            if let stat = statsByDay[dayKey], stat.totalWords > 0 {
+                streak += 1
+                guard let prev = calendar.date(byAdding: .day, value: -1, to: checkDate) else { break }
+                checkDate = prev
+            } else {
+                break
+            }
+        }
+
+        return streak
+    }
+
+    /// Retorna o total de dias com utilização registada.
+    public var activeDaysCount: Int {
+        dailyStats.filter { $0.totalWords > 0 }.count
     }
 
     // MARK: - Ações de Histórico

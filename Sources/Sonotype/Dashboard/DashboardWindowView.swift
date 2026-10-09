@@ -44,12 +44,7 @@ public struct DashboardWindowView: View {
         VStack(spacing: 0) {
             // Cabeçalho da Aplicação na Barra Lateral com Atalho Compacto
             HStack(spacing: 10) {
-                Image(systemName: "waveform.circle.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 24, height: 24)
-                    .foregroundStyle(Color.accentColor)
-                    .accessibilityHidden(true)
+                SonotypeBrandLogoView(size: 26)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Sonotype")
@@ -167,6 +162,8 @@ public struct DashboardWindowView: View {
 
     private func sectionIcon(for section: DashboardSection) -> String {
         switch section {
+        case .home:
+            return "house.fill"
         case .history:
             return "clock.arrow.circlepath"
         case .vocabulary:
@@ -178,6 +175,8 @@ public struct DashboardWindowView: View {
 
     private func sectionBadge(for section: DashboardSection) -> String? {
         switch section {
+        case .home:
+            return nil
         case .history:
             return viewModel.historyRecords.isEmpty ? nil : "\(viewModel.historyRecords.count)"
         case .vocabulary:
@@ -193,6 +192,8 @@ public struct DashboardWindowView: View {
     @ViewBuilder
     private var detailContent: some View {
         switch viewModel.selectedSection {
+        case .home:
+            HomeOverviewView(viewModel: viewModel, onOpenSettings: onOpenSettings)
         case .history:
             HistoryListView(viewModel: viewModel)
         case .vocabulary:

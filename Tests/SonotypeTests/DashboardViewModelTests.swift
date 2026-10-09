@@ -34,7 +34,7 @@ final class DashboardViewModelTests: XCTestCase {
 
     func testInitialStateAndLoadAll() throws {
         // Estado inicial antes de loadAll
-        XCTAssertEqual(viewModel.selectedSection, .history)
+        XCTAssertEqual(viewModel.selectedSection, .home)
         XCTAssertEqual(viewModel.searchQuery, "")
         XCTAssertTrue(viewModel.historyRecords.isEmpty)
         XCTAssertTrue(viewModel.vocabularyEntries.isEmpty)
@@ -62,15 +62,17 @@ final class DashboardViewModelTests: XCTestCase {
     // MARK: - 2. Seletor de Secções do Dashboard
 
     func testDashboardSectionSelection() {
+        XCTAssertEqual(DashboardSection.home.rawValue, "Início")
         XCTAssertEqual(DashboardSection.history.rawValue, "Histórico")
         XCTAssertEqual(DashboardSection.vocabulary.rawValue, "Dicionário")
         XCTAssertEqual(DashboardSection.stats.rawValue, "Estatísticas")
 
+        XCTAssertEqual(DashboardSection.home.id, "Início")
         XCTAssertEqual(DashboardSection.history.id, "Histórico")
         XCTAssertEqual(DashboardSection.vocabulary.id, "Dicionário")
         XCTAssertEqual(DashboardSection.stats.id, "Estatísticas")
 
-        XCTAssertEqual(DashboardSection.allCases.count, 3)
+        XCTAssertEqual(DashboardSection.allCases.count, 4)
 
         viewModel.selectedSection = .vocabulary
         XCTAssertEqual(viewModel.selectedSection, .vocabulary)

@@ -30,6 +30,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
     public private(set) var sessionStartTime: Date?
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
+        SonotypeBrandAsset.applyApplicationIcon()
         setupCoreServices()
 
         // Verificação do estado do Onboarding no primeiro arranque
@@ -189,13 +190,25 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
             let micStatus = self.permissionsService?.microphoneStatus ?? AVCaptureDevice.authorizationStatus(for: .audio)
             let speechStatus = self.permissionsService?.speechStatus ?? SFSpeechRecognizer.authorizationStatus()
 
-            if micStatus == .denied || micStatus == .restricted || micStatus == .notDetermined {
+            if micStatus == .notDetermined {
+                Task {
+                    _ = await self.permissionsService?.requestMicrophoneAccess()
+                }
+                coordinator.handleError(SpeechRecognitionError.microphoneNotAuthorized)
+                return
+            } else if micStatus == .denied || micStatus == .restricted {
                 Self.logger.error("Tentativa de gravação com microfone não autorizado (status: \(micStatus.rawValue))")
                 coordinator.handleError(SpeechRecognitionError.microphoneNotAuthorized)
                 return
             }
 
-            if speechStatus == .denied || speechStatus == .restricted || speechStatus == .notDetermined {
+            if speechStatus == .notDetermined {
+                Task {
+                    _ = await self.permissionsService?.requestSpeechAccess()
+                }
+                coordinator.handleError(SpeechRecognitionError.notAuthorized)
+                return
+            } else if speechStatus == .denied || speechStatus == .restricted {
                 Self.logger.error("Tentativa de gravação com reconhecimento de fala não autorizado (status: \(speechStatus.rawValue))")
                 coordinator.handleError(SpeechRecognitionError.notAuthorized)
                 return
@@ -639,6 +652,8 @@ struct SonotypeApp: App {
             DashboardWindowView(
                 viewModel: DashboardViewModel(
                     repository: appDelegate.repository ?? .shared,
+                    preferencesManager: appDelegate.preferencesManager,
+                    permissionsService: appDelegate.permissionsService,
                     autoLoad: true
                 ),
                 onOpenSettings: {

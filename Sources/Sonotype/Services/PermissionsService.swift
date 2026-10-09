@@ -146,9 +146,11 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
             self.speechStatus = newSpeech
         }
 
-        let newAx = AXIsProcessTrusted()
+        let checkOptions = ["AXTrustedCheckOptionPrompt": false] as CFDictionary
+        let newAx = AXIsProcessTrustedWithOptions(checkOptions)
         if self.isAccessibilityAuthorized != newAx {
             self.isAccessibilityAuthorized = newAx
+            Self.logger.info("Estado de acessibilidade atualizado: \(newAx, privacy: .public)")
         }
     }
 
@@ -206,15 +208,11 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
     /// Se `prompt` for `true`, o macOS exibe o diálogo nativo do sistema a solicitar autorização.
     @discardableResult
     public func checkAccessibilityPermission(prompt: Bool = false) -> Bool {
-        let trusted: Bool
-        if prompt {
-            let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-            trusted = AXIsProcessTrustedWithOptions(options)
-        } else {
-            trusted = AXIsProcessTrusted()
-        }
+        let options = ["AXTrustedCheckOptionPrompt": prompt] as CFDictionary
+        let trusted = AXIsProcessTrustedWithOptions(options)
         if self.isAccessibilityAuthorized != trusted {
             self.isAccessibilityAuthorized = trusted
+            Self.logger.info("Acessibilidade verificada (prompt: \(prompt)): \(trusted, privacy: .public)")
         }
         return trusted
     }

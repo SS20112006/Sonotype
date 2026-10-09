@@ -328,6 +328,14 @@ public final class PersistenceRepository {
         try fetchStat(for: Date())
     }
 
+    public func fetchDailyStats(limit: Int = 35) throws -> [SessionStat] {
+        var descriptor = FetchDescriptor<SessionStat>(
+            sortBy: [SortDescriptor(\SessionStat.date, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        return try context.fetch(descriptor)
+    }
+
     public func fetchTotalStats() throws -> TotalUsageStats {
         let descriptor = FetchDescriptor<SessionStat>()
         let stats = try context.fetch(descriptor)

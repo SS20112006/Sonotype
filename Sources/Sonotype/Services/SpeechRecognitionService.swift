@@ -98,36 +98,49 @@ public class SpeechRecognitionService: @unchecked Sendable {
             throw SpeechRecognitionError.alreadyRecognizing
         }
 
-        guard let rec = recognizers[language] ?? SFSpeechRecognizer(locale: language.locale) else {
+        var activeRec = recognizers[language] ?? SFSpeechRecognizer(locale: language.locale)
+        var effectiveLanguage = language
+
+        // Fallback inteligente para variantes da mesma língua com suporte on-device pré-instalado
+        if requiresOnDeviceRecognition, let r = activeRec, !r.supportsOnDeviceRecognition {
+            if language == .portuguesePT, let brRec = recognizers[.portugueseBR], brRec.supportsOnDeviceRecognition {
+                Self.logger.info("Locale pt-PT sem modelo offline descarregado; utilizando recognizer pt-BR on-device.")
+                activeRec = brRec
+                effectiveLanguage = .portugueseBR
+            } else if language == .englishGB, let usRec = recognizers[.englishUS], usRec.supportsOnDeviceRecognition {
+                Self.logger.info("Locale en-GB sem modelo offline descarregado; utilizando recognizer en-US on-device.")
+                activeRec = usRec
+                effectiveLanguage = .englishUS
+            }
+        }
+
+        guard let rec = activeRec else {
             Self.logger.error("Reconhecedor de fala indisponível para o idioma \(language.rawValue, privacy: .public)")
             throw SpeechRecognitionError.recognizerUnavailable(language)
         }
 
-        recognizers[language] = rec
+        recognizers[effectiveLanguage] = rec
 
-        if requiresOnDeviceRecognition && !rec.supportsOnDeviceRecognition {
-            let speechAuth = SFSpeechRecognizer.authorizationStatus()
-            let micAuth = AVCaptureDevice.authorizationStatus(for: .audio)
+        // Verificação estrita de permissões do sistema
+        let speechAuth = SFSpeechRecognizer.authorizationStatus()
+        let micAuth = AVCaptureDevice.authorizationStatus(for: .audio)
 
-            if speechAuth == .denied || speechAuth == .restricted {
-                Self.logger.error("Permissão de reconhecimento de fala não concedida (\(speechAuth.rawValue)) para \(language.rawValue, privacy: .public)")
-                throw SpeechRecognitionError.notAuthorized
-            } else if micAuth == .denied || micAuth == .restricted {
-                Self.logger.error("Permissão de microfone não concedida (\(micAuth.rawValue)) para \(language.rawValue, privacy: .public)")
-                throw SpeechRecognitionError.microphoneNotAuthorized
-            } else {
-                Self.logger.warning("Reconhecimento offline no dispositivo ainda não disponível para \(language.rawValue, privacy: .public). O modelo pode estar em descarregamento.")
-                throw SpeechRecognitionError.onDeviceRecognitionUnsupported(language)
-            }
+        if speechAuth == .denied || speechAuth == .restricted {
+            Self.logger.error("Permissão de reconhecimento de fala não concedida (\(speechAuth.rawValue)) para \(language.rawValue, privacy: .public)")
+            throw SpeechRecognitionError.notAuthorized
+        } else if micAuth == .denied || micAuth == .restricted {
+            Self.logger.error("Permissão de microfone não concedida (\(micAuth.rawValue)) para \(language.rawValue, privacy: .public)")
+            throw SpeechRecognitionError.microphoneNotAuthorized
         }
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
+        // Ativa estritamente on-device quando suportado pelo motor instalado
         request.requiresOnDeviceRecognition = requiresOnDeviceRecognition && rec.supportsOnDeviceRecognition
 
         self.currentRequest = request
         self._isRecognizing = true
-        Self.logger.info("Iniciando reconhecimento de fala para o idioma \(language.rawValue, privacy: .public)")
+        Self.logger.info("Iniciando reconhecimento de fala para o idioma \(effectiveLanguage.rawValue, privacy: .public) (onDevice: \(request.requiresOnDeviceRecognition))")
 
         self.currentTask = rec.recognitionTask(with: request) { [weak self] result, error in
             guard let self = self else { return }

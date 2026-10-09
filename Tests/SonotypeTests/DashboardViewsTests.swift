@@ -33,7 +33,12 @@ final class DashboardViewsTests: XCTestCase {
     func testDashboardWindowViewCreation() {
         let view = DashboardWindowView(viewModel: viewModel)
         XCTAssertNotNil(view.body)
-        XCTAssertEqual(viewModel.selectedSection, .history)
+        XCTAssertEqual(viewModel.selectedSection, .home)
+    }
+
+    func testHomeOverviewViewCreation() {
+        let homeView = HomeOverviewView(viewModel: viewModel)
+        XCTAssertNotNil(homeView.body)
     }
 
     // MARK: - 2. Inicialização e Subviews de HistoryListView
