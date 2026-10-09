@@ -128,6 +128,24 @@ final class SpeechRecognitionServiceTests: XCTestCase {
         // Strings vazias -> não comita
         XCTAssertFalse(SpeechRecognitionService.shouldCommitPreviousUtterance(previous: "", new: "teste"))
         XCTAssertFalse(SpeechRecognitionService.shouldCommitPreviousUtterance(previous: "teste", new: ""))
+
+        // Frase com refinamento de pontuação ou caixa alta/baixa -> NÃO deve comitar para não duplicar!
+        XCTAssertFalse(
+            SpeechRecognitionService.shouldCommitPreviousUtterance(previous: "Olá mundo", new: "Olá, mundo!"),
+            "Adição de pontuação na mesma frase não deve ser tratada como nova elocução"
+        )
+        XCTAssertFalse(
+            SpeechRecognitionService.shouldCommitPreviousUtterance(previous: "bom dia", new: "Bom dia."),
+            "Capitalização e ponto final em frase curta não deve comitar"
+        )
+        XCTAssertFalse(
+            SpeechRecognitionService.shouldCommitPreviousUtterance(previous: "teste", new: "Teste."),
+            "Palavra isolada com ponto final não deve comitar"
+        )
+        XCTAssertFalse(
+            SpeechRecognitionService.shouldCommitPreviousUtterance(previous: "olá tudo bem", new: "Olá, tudo bem?"),
+            "Pergunta com pontuação não deve comitar"
+        )
     }
 
     func testCombineTranscriptions() {
@@ -154,6 +172,25 @@ final class SpeechRecognitionServiceTests: XCTestCase {
         XCTAssertEqual(
             SpeechRecognitionService.combineTranscriptions("   ", "   "),
             ""
+        )
+        // Deduplicação: conteúdo idêntico com/sem pontuação não duplica
+        XCTAssertEqual(
+            SpeechRecognitionService.combineTranscriptions("Olá mundo", "Olá, mundo!"),
+            "Olá, mundo!"
+        )
+        XCTAssertEqual(
+            SpeechRecognitionService.combineTranscriptions("bom dia", "Bom dia."),
+            "Bom dia."
+        )
+        // Deduplicação: se a nova frase é expansão que já contém a anterior
+        XCTAssertEqual(
+            SpeechRecognitionService.combineTranscriptions("Olá mundo", "Olá mundo, como estás?"),
+            "Olá mundo, como estás?"
+        )
+        // Deduplicação: se a frase anterior já termina com o conteúdo da nova
+        XCTAssertEqual(
+            SpeechRecognitionService.combineTranscriptions("Hoje é dia de teste. Olá mundo", "Olá mundo"),
+            "Hoje é dia de teste. Olá mundo"
         )
     }
 

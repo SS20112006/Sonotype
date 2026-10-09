@@ -293,12 +293,12 @@ public class SpeechRecognitionService: @unchecked Sendable {
             let newTrimmed = rawFormatted.trimmingCharacters(in: .whitespacesAndNewlines)
             let isExpansion = !prevTrimmed.isEmpty && (newTrimmed.hasPrefix(prevTrimmed) || newTrimmed.localizedCaseInsensitiveContains(prevTrimmed))
 
-            // Se houve uma pausa silenciosa considerável (>= 1.0s) e a nova cadeia não é expansão da anterior
+            // Se houve uma pausa silenciosa considerável (>= 1.8s) e a nova cadeia não é expansão da anterior
             let hasPaused = !prevTrimmed.isEmpty && !newTrimmed.isEmpty && !isExpansion && timeSinceLast >= pauseCommitThresholdSeconds
-            let boundaryDetected = Self.shouldCommitPreviousUtterance(previous: lastRawSegmentString, new: rawFormatted)
+            let boundaryDetected = hasPaused && Self.shouldCommitPreviousUtterance(previous: lastRawSegmentString, new: rawFormatted)
 
-            // Deteta se a Apple iniciou uma nova elocução independente após pausa ou separação acústica
-            if hasPaused || boundaryDetected {
+            // Deteta se a Apple iniciou uma nova elocução independente estritamente após pausa
+            if boundaryDetected {
                 accumulatedTranscription = Self.combineTranscriptions(accumulatedTranscription, lastRawSegmentString)
                 currentSegmentTranscription = rawFormatted
             } else {
@@ -533,6 +533,16 @@ public class SpeechRecognitionService: @unchecked Sendable {
 
     // MARK: - Algoritmos de Agregação e Deteção de Fronteiras de Fala
 
+    /// Normaliza uma cadeia textual para comparação semântica (minúsculas, remoção de pontuação e espaços redundantes).
+    public static func normalizeForComparison(_ text: String) -> String {
+        text.lowercased()
+            .components(separatedBy: CharacterSet.punctuationCharacters)
+            .joined(separator: " ")
+            .components(separatedBy: CharacterSet.whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
     /// Avalia se a nova cadeia de caracteres indica o início de uma nova elocução após uma pausa/frase anterior.
     public static func shouldCommitPreviousUtterance(previous: String, new: String) -> Bool {
         let prevTrimmed = previous.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -540,17 +550,25 @@ public class SpeechRecognitionService: @unchecked Sendable {
 
         guard !prevTrimmed.isEmpty, !newTrimmed.isEmpty else { return false }
 
-        // Se a nova elocução contém a anterior ou começa por ela, é uma expansão contínua
-        if newTrimmed.hasPrefix(prevTrimmed) || newTrimmed.localizedCaseInsensitiveContains(prevTrimmed) {
+        let prevNorm = normalizeForComparison(prevTrimmed)
+        let newNorm = normalizeForComparison(newTrimmed)
+
+        // Se após normalização de pontuação e maiúsculas forem idênticas ou uma for expansão direta
+        if prevNorm == newNorm || newNorm.hasPrefix(prevNorm) || newNorm.localizedCaseInsensitiveContains(prevNorm) {
             return false
         }
 
-        let prevWords = prevTrimmed.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
-        let newWords = newTrimmed.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        // Se a frase anterior contiver a nova (refinamento ou truncagem acústica da mesma frase)
+        if prevNorm.hasPrefix(newNorm) {
+            return false
+        }
+
+        let prevWords = prevNorm.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        let newWords = newNorm.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
 
         guard !prevWords.isEmpty, !newWords.isEmpty else { return false }
 
-        // Se a frase encolheu significativamente (ex: de 3+ palavras para 1 ou 2), a Apple iniciou uma nova elocução
+        // Se a frase encolheu significativamente (ex: de 3+ palavras para 1), a Apple iniciou uma nova elocução
         if prevWords.count >= 3 && newWords.count <= prevWords.count - 2 {
             return true
         }
@@ -559,14 +577,14 @@ public class SpeechRecognitionService: @unchecked Sendable {
         var matchingPrefixWords = 0
         let minCount = min(prevWords.count, newWords.count)
         for i in 0..<minCount {
-            if prevWords[i].caseInsensitiveCompare(newWords[i]) == .orderedSame {
+            if prevWords[i] == newWords[i] {
                 matchingPrefixWords += 1
             } else {
                 break
             }
         }
 
-        // Se o número de palavras for muito similar e a maioria substancial coincidir (>= 60%),
+        // Se o número de palavras for similar e a maioria substancial coincidir (>= 60%),
         // trata-se de refinamento/correção da mesma elocução (ex: "para a caça" -> "para casa" ou "com o João" -> "com a Maria")
         let wordCountDiff = abs(prevWords.count - newWords.count)
         let matchRatio = Double(matchingPrefixWords) / Double(prevWords.count)
@@ -578,13 +596,30 @@ public class SpeechRecognitionService: @unchecked Sendable {
         return true
     }
 
-    /// Combina dois blocos textuais mantendo pontuação e espaçamento higiénico.
-    /// Respeita a pontuação nativa do motor de reconhecimento da Apple sem forçar períodos artificiais.
+    /// Combina dois blocos textuais mantendo pontuação e espaçamento higiénico, evitando repetições duplicadas.
     public static func combineTranscriptions(_ a: String, _ b: String) -> String {
         let aTrimmed = a.trimmingCharacters(in: .whitespacesAndNewlines)
         let bTrimmed = b.trimmingCharacters(in: .whitespacesAndNewlines)
         if aTrimmed.isEmpty { return bTrimmed }
         if bTrimmed.isEmpty { return aTrimmed }
+
+        let aNorm = normalizeForComparison(aTrimmed)
+        let bNorm = normalizeForComparison(bTrimmed)
+
+        // Se forem idênticos em conteúdo (apenas diferem em pontuação ou maiúsculas/minúsculas)
+        if aNorm == bNorm {
+            return bTrimmed.count >= aTrimmed.count ? bTrimmed : aTrimmed
+        }
+
+        // Se b já for uma expansão completa de a
+        if bNorm.hasPrefix(aNorm) {
+            return bTrimmed
+        }
+
+        // Se a já contiver o texto b como sufixo (já comitado)
+        if aNorm.hasSuffix(bNorm) {
+            return aTrimmed
+        }
 
         return "\(aTrimmed) \(bTrimmed)"
     }

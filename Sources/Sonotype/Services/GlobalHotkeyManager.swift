@@ -295,6 +295,7 @@ public final class SystemGlobalHotkeyManager: GlobalHotkeyMonitoring, Sendable {
     @discardableResult
     public func handleKeyEvent(_ event: NSEvent) -> Bool {
         guard isEnabled else { return false }
+        guard !event.isARepeat else { return false }
 
         // Verifica o atalho configurado de gravação (ex: Option + Espaço)
         if currentHotkey.matches(eventKeyCode: event.keyCode, eventModifiers: event.modifierFlags) {
