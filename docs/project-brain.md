@@ -82,11 +82,11 @@ O plano completo de desenvolvimento de ponta a ponta encontra-se formalizado em 
 ---
 
 ## 5. Estado Atual & Backlog no Git
-- **Fase**: Tarefas 01 a 11B Concluídas e Verificadas com Sucesso (245 testes unitários e de integração a passar, 0 falhas).
+- **Fase**: 100% das Tarefas do Roteiro Concluídas com Sucesso (Tarefas 01 a 12 concluídas, 249 testes unitários e de integração a passar, 0 falhas).
 - **Backlog Sincronizado no Git**:
-  - Tarefas 01 a 11B formalmente validadas (245 testes unitários a passar).
-  - **Tarefa Seguinte (#12)**: Hardening de Produção, Assinatura & Packaging ([Issue #12](https://github.com/SS20112006/Sonotype/issues/12)).
-- **Próximo Passo**: Iniciar a **Tarefa 12: Hardening de Produção, Assinatura & Packaging** ([Issue #12](https://github.com/SS20112006/Sonotype/issues/12)) — a tarefa final do projeto — através do 🏛️ **Trio Arquitetura, Performance & Dívida Técnica**.
+  - Todas as 12 tarefas fundamentais concluídas e verificadas com rigor.
+  - Artefactos finais gerados e assinados: `build/Sonotype.dmg` e `~/Downloads/Sonotype.app`.
+- **Próximo Passo**: Release v1.0.0 pronta para distribuição. Backlog futuro para v2.0 documentado abaixo.
 
 ---
 

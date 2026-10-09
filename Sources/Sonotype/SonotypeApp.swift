@@ -496,6 +496,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
                 }
                 try audioCapture.startCapture()
             } catch {
+                Self.logger.error("Falha ao iniciar teste de voz no onboarding: \(error.localizedDescription, privacy: .public)")
                 viewModel?.isTestingSpeech = false
             }
         }

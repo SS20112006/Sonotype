@@ -7,8 +7,12 @@ RESOURCES_DIR = $(CONTENTS_DIR)/Resources
 ENTITLEMENTS = Sonotype.entitlements
 INFO_PLIST = Resources/Info.plist
 REQUIREMENTS = Resources/Sonotype.requirements
+DOWNLOADS_DIR = $(HOME)/Downloads
+DOWNLOADS_APP = $(DOWNLOADS_DIR)/$(APP_NAME).app
+DMG_FILE = $(BUILD_DIR)/$(APP_NAME).dmg
+DMG_STAGING = $(BUILD_DIR)/dmg-staging
 
-.PHONY: all build check local run clean
+.PHONY: all build check local dmg run clean
 
 all: build
 
@@ -17,7 +21,7 @@ check:
 	swift test
 
 build:
-	@echo "==> A compilar $(APP_NAME) com Swift 6..."
+	@echo "==> A compilar $(APP_NAME) com Swift 6 (Release)..."
 	swift build -c release
 
 local: build
@@ -30,11 +34,30 @@ local: build
 	@if [ -f $(ENTITLEMENTS) ]; then cp $(ENTITLEMENTS) $(RESOURCES_DIR)/; fi
 	@echo "==> A assinar bundle localmente com entitlements..."
 	@codesign --force --deep --sign - --entitlements $(ENTITLEMENTS) $(APP_BUNDLE)
-	@echo "==> Bundle pronto em $(APP_BUNDLE)"
+	@codesign --verify --deep --strict $(APP_BUNDLE)
+	@echo "==> A instalar bundle em $(DOWNLOADS_APP)..."
+	@if [ -d $(DOWNLOADS_APP) ]; then rm -rf $(DOWNLOADS_APP) 2>/dev/null || osascript -e 'tell application "Finder" to delete POSIX file "$(DOWNLOADS_APP)"' 2>/dev/null || true; fi
+	@cp -R $(APP_BUNDLE) $(DOWNLOADS_APP)
+	@codesign --force --deep --sign - --entitlements $(ENTITLEMENTS) $(DOWNLOADS_APP)
+	@codesign --verify --deep --strict $(DOWNLOADS_APP)
+	@echo "==> Executável assinado e pronto em $(DOWNLOADS_APP)"
+
+dmg: local
+	@echo "==> A preparar staging para imagem DMG..."
+	@rm -rf $(DMG_STAGING) $(DMG_FILE)
+	@mkdir -p $(DMG_STAGING)
+	@cp -R $(APP_BUNDLE) $(DMG_STAGING)/$(APP_NAME).app
+	@ln -s /Applications $(DMG_STAGING)/Applications
+	@echo "==> A gerar imagem de disco $(DMG_FILE)..."
+	@hdiutil create -volname "$(APP_NAME)" -srcfolder "$(DMG_STAGING)" -ov -format UDZO "$(DMG_FILE)"
+	@rm -rf $(DMG_STAGING)
+	@echo "==> A verificar integridade da imagem DMG..."
+	@hdiutil verify $(DMG_FILE)
+	@echo "==> Imagem DMG distribuível pronta em $(DMG_FILE)"
 
 run: local
 	@echo "==> A iniciar $(APP_NAME)..."
-	@open $(APP_BUNDLE)
+	@open $(DOWNLOADS_APP)
 
 clean:
 	@echo "==> A limpar artefactos de compilação..."

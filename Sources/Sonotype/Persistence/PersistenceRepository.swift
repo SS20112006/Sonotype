@@ -106,7 +106,7 @@ public final class PersistenceRepository {
         )
         context.insert(record)
 
-        // Sincroniza estatísticas diárias automaticamente
+        // Sincroniza estatísticas diárias automaticamente e persiste
         _ = try recordSessionStat(
             wordCount: record.wordCount,
             duration: duration,
@@ -114,7 +114,6 @@ public final class PersistenceRepository {
             date: date
         )
 
-        try saveContextIfNeeded()
         return record
     }
 
