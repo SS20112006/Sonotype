@@ -74,5 +74,8 @@ final class SpeechRecognitionServiceTests: XCTestCase {
         XCTAssertNotNil(err5.errorDescription)
         let err6 = SpeechRecognitionError.microphoneNotAuthorized
         XCTAssertNotNil(err6.errorDescription)
+        let err7 = SpeechRecognitionError.dictationDisabled
+        XCTAssertNotNil(err7.errorDescription)
+        XCTAssertTrue(err7.errorDescription?.contains("Ditado") == true)
     }
 }

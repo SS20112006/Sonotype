@@ -14,6 +14,7 @@ public final class PermissionsSettingsCoordinator: ObservableObject, Sendable {
     @Published public private(set) var isMicrophoneAuthorized: Bool = false
     @Published public private(set) var isSpeechAuthorized: Bool = false
     @Published public private(set) var isAccessibilityAuthorized: Bool = false
+    @Published public private(set) var isDictationEnabled: Bool = true
     @Published public private(set) var isRefreshing: Bool = false
     @Published public private(set) var lastRefreshedAt: Date?
     @Published public var feedbackTrigger: Int = 0
@@ -88,6 +89,17 @@ public final class PermissionsSettingsCoordinator: ObservableObject, Sendable {
                     }
                 }
                 .store(in: &cancellables)
+
+            observableService.$isDictationEnabled
+                .receive(on: RunLoop.main)
+                .sink { [weak self] isDict in
+                    guard let self = self else { return }
+                    if self.isDictationEnabled != isDict {
+                        self.isDictationEnabled = isDict
+                        self.lastRefreshedAt = Date()
+                    }
+                }
+                .store(in: &cancellables)
         }
     }
 
@@ -97,6 +109,7 @@ public final class PermissionsSettingsCoordinator: ObservableObject, Sendable {
         let newMic = permissionsService.isMicrophoneAuthorized
         let newSpeech = permissionsService.isSpeechAuthorized
         let newAx = permissionsService.isAccessibilityAuthorized
+        let newDict = permissionsService.isDictationEnabled
 
         var hasChanged = false
         if self.isMicrophoneAuthorized != newMic {
@@ -109,6 +122,10 @@ public final class PermissionsSettingsCoordinator: ObservableObject, Sendable {
         }
         if self.isAccessibilityAuthorized != newAx {
             self.isAccessibilityAuthorized = newAx
+            hasChanged = true
+        }
+        if self.isDictationEnabled != newDict {
+            self.isDictationEnabled = newDict
             hasChanged = true
         }
 
@@ -214,6 +231,10 @@ public struct PermissionsSettingsTabView: View {
             VStack(alignment: .leading, spacing: 18) {
                 headerBanner
 
+                if !coordinator.isDictationEnabled {
+                    dictationWarningCard
+                }
+
                 // Secção 1: Microfone
                 microphoneSection
 
@@ -293,6 +314,49 @@ public struct PermissionsSettingsTabView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
+        )
+    }
+
+    // MARK: - Banner de Ditado do macOS
+
+    private var dictationWarningCard: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: "exclamationmark.bubble.fill")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(Color.orange)
+                .frame(width: 44, height: 44)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Ditado do macOS Desativado")
+                    .font(.system(size: 15, weight: .semibold, design: .default))
+                    .tracking(-0.1)
+                    .foregroundStyle(Color.primary)
+
+                Text("O reconhecimento de voz da Apple no macOS requer que a funcionalidade Ditado esteja ativada nas Definições do Sistema > Teclado.")
+                    .font(.system(size: 12, weight: .regular, design: .default))
+                    .tracking(-0.05)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    coordinator.permissionsService.openSystemSettings(for: .dictation)
+                } label: {
+                    Label("Ativar Ditado nas Definições", systemImage: "arrow.up.forward.app")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+                .padding(.top, 2)
+            }
+
+            Spacer()
+        }
+        .padding(14)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.orange.opacity(0.4), lineWidth: 1)
         )
     }
 

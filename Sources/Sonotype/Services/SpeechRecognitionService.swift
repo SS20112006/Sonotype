@@ -9,6 +9,7 @@ public enum SpeechRecognitionError: LocalizedError, Sendable {
     case onDeviceRecognitionUnsupported(SpeechLanguage)
     case notAuthorized
     case microphoneNotAuthorized
+    case dictationDisabled
     case alreadyRecognizing
     case noActiveSession
 
@@ -22,6 +23,8 @@ public enum SpeechRecognitionError: LocalizedError, Sendable {
             return "Permissão de reconhecimento de fala não concedida. Ative nas Definições do Sistema."
         case .microphoneNotAuthorized:
             return "Permissão de microfone não concedida. Ative nas Definições do Sistema."
+        case .dictationDisabled:
+            return "O Ditado do macOS está desativado. Ative o Ditado em Definições do Sistema > Teclado."
         case .alreadyRecognizing:
             return "Já existe uma sessão de reconhecimento em curso."
         case .noActiveSession:
@@ -83,6 +86,32 @@ public class SpeechRecognitionService: @unchecked Sendable {
         return rec.supportsOnDeviceRecognition
     }
 
+    /// Verifica se o Ditado ou a Siri estão habilitados no sistema macOS.
+    public static var isDictationOrSiriEnabled: Bool {
+        let keyDictation = "DictationIMMasterDictationEnabled" as CFString
+        let domainDictation = "com.apple.speech.recognition.AppleSpeechRecognition.prefs" as CFString
+        var keyExists: DarwinBoolean = false
+        let dictationVal = CFPreferencesGetAppBooleanValue(keyDictation, domainDictation, &keyExists)
+        if keyExists.boolValue && dictationVal {
+            return true
+        }
+
+        let keySiri = "Assistant Enabled" as CFString
+        let domainSiri = "com.apple.assistant.support" as CFString
+        var siriExists: DarwinBoolean = false
+        let siriVal = CFPreferencesGetAppBooleanValue(keySiri, domainSiri, &siriExists)
+        if siriExists.boolValue && siriVal {
+            return true
+        }
+
+        // Se nenhuma das chaves existe explicitamente, assume true para evitar bloqueio indevido
+        if !keyExists.boolValue && !siriExists.boolValue {
+            return true
+        }
+
+        return false
+    }
+
     /// Inicia uma sessão de reconhecimento de fala para um idioma alvo.
     /// O áudio é alimentado em streaming através de `appendBuffer(_:)` sem gravar nada em disco.
     public func startRecognition(
@@ -96,6 +125,11 @@ public class SpeechRecognitionService: @unchecked Sendable {
         guard !_isRecognizing else {
             Self.logger.warning("Tentativa de iniciar reconhecimento com uma sessão já ativa")
             throw SpeechRecognitionError.alreadyRecognizing
+        }
+
+        if !Self.isDictationOrSiriEnabled {
+            Self.logger.error("Ditado do macOS desativado no sistema")
+            throw SpeechRecognitionError.dictationDisabled
         }
 
         var activeRec = recognizers[language] ?? SFSpeechRecognizer(locale: language.locale)
@@ -158,7 +192,19 @@ public class SpeechRecognitionService: @unchecked Sendable {
 
             if let error = error {
                 Self.logger.error("Erro na tarefa de reconhecimento de fala: \(error.localizedDescription, privacy: .public)")
-                onError?(error)
+                let nsError = error as NSError
+                let isDictationDisabled = nsError.localizedDescription.localizedCaseInsensitiveContains("dictation")
+                    || nsError.localizedDescription.localizedCaseInsensitiveContains("siri")
+                    || (nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 1700)
+                    || nsError.code == 201
+
+                if isDictationDisabled {
+                    onError?(SpeechRecognitionError.dictationDisabled)
+                } else if nsError.code == 1110 {
+                    onError?(SpeechRecognitionError.notAuthorized)
+                } else {
+                    onError?(error)
+                }
                 self.resetSession()
             }
         }

@@ -24,6 +24,9 @@ public protocol PermissionsServiceProtocol: AnyObject, Sendable {
     /// Indica se a permissão de acessibilidade está concedida (Trusted).
     var isAccessibilityAuthorized: Bool { get }
 
+    /// Indica se o Ditado ou Siri do sistema macOS está ativado.
+    var isDictationEnabled: Bool { get }
+
     /// Requisita permissão de acesso ao microfone ao sistema operativo.
     func requestMicrophoneAccess() async -> Bool
 
@@ -55,6 +58,10 @@ extension PermissionsServiceProtocol {
         speechStatus == .authorized
     }
 
+    public var isDictationEnabled: Bool {
+        SpeechRecognitionService.isDictationOrSiriEnabled
+    }
+
     public func requestSpeechAccess() async -> Bool {
         let current = SFSpeechRecognizer.authorizationStatus()
         if current == .authorized {
@@ -80,6 +87,7 @@ public enum SystemPrivacyPane: Sendable {
     case microphone
     case speechRecognition
     case accessibility
+    case dictation
 
     public var url: URL? {
         switch self {
@@ -89,6 +97,8 @@ public enum SystemPrivacyPane: Sendable {
             return URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition")
         case .accessibility:
             return URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        case .dictation:
+            return URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")
         }
     }
 }
@@ -102,6 +112,7 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
     @Published public private(set) var microphoneStatus: AVAuthorizationStatus = .notDetermined
     @Published public private(set) var speechStatus: SFSpeechRecognizerAuthorizationStatus = .notDetermined
     @Published public private(set) var isAccessibilityAuthorized: Bool = false
+    @Published public private(set) var isDictationEnabled: Bool = true
 
     public var isMicrophoneAuthorized: Bool {
         microphoneStatus == .authorized
@@ -158,6 +169,12 @@ public final class PermissionsService: ObservableObject, PermissionsServiceProto
         if self.isAccessibilityAuthorized != newAx {
             self.isAccessibilityAuthorized = newAx
             Self.logger.info("Estado de acessibilidade atualizado: \(newAx, privacy: .public)")
+        }
+
+        let newDictation = SpeechRecognitionService.isDictationOrSiriEnabled
+        if self.isDictationEnabled != newDictation {
+            self.isDictationEnabled = newDictation
+            Self.logger.info("Estado de ditado atualizado: \(newDictation, privacy: .public)")
         }
     }
 

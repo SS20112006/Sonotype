@@ -221,6 +221,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
                 return
             }
 
+            // Verificar se o Ditado / Siri do macOS está ativado no sistema
+            if let permService = self.permissionsService, !permService.isDictationEnabled {
+                Self.logger.error("Tentativa de gravação com Ditado/Siri desativado no macOS")
+                coordinator.handleError(SpeechRecognitionError.dictationDisabled)
+                return
+            }
+
             // Iniciar reconhecimento de voz para o idioma ativo
             do {
                 try speechService.startRecognition(
@@ -417,6 +424,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
                 case .microphoneNotAuthorized:
                     reason = "Sem microfone"
                     self?.permissionsService?.openSystemSettings(for: .microphone)
+                case .dictationDisabled:
+                    reason = "Ditado desativado"
+                    self?.permissionsService?.openSystemSettings(for: .dictation)
                 case .onDeviceRecognitionUnsupported:
                     reason = "Voz offline indisponível"
                 case .recognizerUnavailable:
@@ -436,7 +446,18 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
                     reason = "Erro de áudio"
                 }
             } else {
-                reason = "Erro na gravação"
+                let nsError = error as NSError
+                let isDictationDisabled = nsError.localizedDescription.localizedCaseInsensitiveContains("dictation")
+                    || nsError.localizedDescription.localizedCaseInsensitiveContains("siri")
+                    || (nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 1700)
+                    || nsError.code == 201
+
+                if isDictationDisabled {
+                    reason = "Ditado desativado"
+                    self?.permissionsService?.openSystemSettings(for: .dictation)
+                } else {
+                    reason = "Erro na gravação"
+                }
             }
 
             self?.hudController?.setCancelled(reason: reason)
