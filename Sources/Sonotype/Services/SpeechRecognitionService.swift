@@ -42,7 +42,20 @@ public class SpeechRecognitionService: @unchecked Sendable {
     private var recognizers: [SpeechLanguage: SFSpeechRecognizer] = [:]
     private var currentRequest: SFSpeechAudioBufferRecognitionRequest?
     private var currentTask: SFSpeechRecognitionTask?
+    private var currentRequestId = UUID()
     private var _isRecognizing: Bool = false
+
+    // Estado acumulado para permitir transcrições longas contínuas sem perdas
+    private var accumulatedTranscription: String = ""
+    private var currentSegmentTranscription: String = ""
+    private var lastRawSegmentString: String = ""
+    private var effectiveLanguage: SpeechLanguage = .portuguesePT
+    private var onTranscriptionCallback: (@Sendable (String, Bool) -> Void)?
+    private var onErrorCallback: (@Sendable (Error) -> Void)?
+    private var rotationTimerTask: Task<Void, Never>?
+
+    /// Intervalo de rotação proativa de tarefa (em segundos) para contornar o limite nativo de 60s da Apple.
+    public let rotationIntervalSeconds: TimeInterval = 45.0
 
     /// Define se o reconhecimento deve forçar estritamente o modo offline (invariante do projeto).
     public let requiresOnDeviceRecognition: Bool
@@ -51,6 +64,13 @@ public class SpeechRecognitionService: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return _isRecognizing
+    }
+
+    /// Retorna a transcrição completa acumulada até ao momento.
+    public var currentFullTranscription: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return Self.combineTranscriptions(accumulatedTranscription, currentSegmentTranscription)
     }
 
     public init(requiresOnDeviceRecognition: Bool = true) {
@@ -112,7 +132,7 @@ public class SpeechRecognitionService: @unchecked Sendable {
         return false
     }
 
-    /// Inicia uma sessão de reconhecimento de fala para um idioma alvo.
+    /// Inicia uma sessão de reconhecimento de fala contínua de longa duração.
     /// O áudio é alimentado em streaming através de `appendBuffer(_:)` sem gravar nada em disco.
     public func startRecognition(
         language: SpeechLanguage = .portuguesePT,
@@ -167,47 +187,173 @@ public class SpeechRecognitionService: @unchecked Sendable {
             throw SpeechRecognitionError.microphoneNotAuthorized
         }
 
+        self.accumulatedTranscription = ""
+        self.currentSegmentTranscription = ""
+        self.lastRawSegmentString = ""
+        self.effectiveLanguage = effectiveLanguage
+        self.onTranscriptionCallback = onTranscriptionUpdate
+        self.onErrorCallback = onError
+        self.currentRequestId = UUID()
+        self._isRecognizing = true
+
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
-        // Ativa estritamente on-device quando suportado pelo motor instalado
         request.requiresOnDeviceRecognition = requiresOnDeviceRecognition && rec.supportsOnDeviceRecognition
 
         self.currentRequest = request
-        self._isRecognizing = true
-        Self.logger.info("Iniciando reconhecimento de fala para o idioma \(effectiveLanguage.rawValue, privacy: .public) (onDevice: \(request.requiresOnDeviceRecognition))")
+        let requestId = self.currentRequestId
+        Self.logger.info("Iniciando reconhecimento de fala de longa duração para o idioma \(effectiveLanguage.rawValue, privacy: .public) (onDevice: \(request.requiresOnDeviceRecognition))")
 
         self.currentTask = rec.recognitionTask(with: request) { [weak self] result, error in
-            guard let self = self else { return }
+            self?.handleRecognitionResult(result: result, error: error, requestId: requestId)
+        }
 
+        scheduleRotationTimer()
+    }
+
+    /// Trata resultados parciais/finais e transições de elocuções para preservar toda a fala da gravação.
+    private func handleRecognitionResult(result: SFSpeechRecognitionResult?, error: Error?, requestId: UUID) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        // Se o resultado pertence a um request antigo após rotação
+        guard _isRecognizing, requestId == currentRequestId else {
             if let result = result {
-                let transcription = result.bestTranscription.formattedString
-                let isFinal = result.isFinal
-                onTranscriptionUpdate(transcription, isFinal)
-
-                if isFinal {
-                    Self.logger.info("Reconhecimento de fala finalizado com sucesso")
-                    self.resetSession()
+                let text = result.bestTranscription.formattedString.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty && !accumulatedTranscription.localizedCaseInsensitiveContains(text) {
+                    accumulatedTranscription = Self.combineTranscriptions(accumulatedTranscription, text)
+                    let full = accumulatedTranscription
+                    onTranscriptionCallback?(full, false)
                 }
             }
+            return
+        }
 
-            if let error = error {
-                Self.logger.error("Erro na tarefa de reconhecimento de fala: \(error.localizedDescription, privacy: .public)")
-                let nsError = error as NSError
-                let isDictationDisabled = nsError.localizedDescription.localizedCaseInsensitiveContains("dictation")
-                    || nsError.localizedDescription.localizedCaseInsensitiveContains("siri")
-                    || (nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 1700)
-                    || nsError.code == 201
+        if let result = result {
+            let rawFormatted = result.bestTranscription.formattedString
+            let isFinal = result.isFinal
 
-                if isDictationDisabled {
-                    onError?(SpeechRecognitionError.dictationDisabled)
-                } else if nsError.code == 1110 {
-                    onError?(SpeechRecognitionError.notAuthorized)
-                } else {
-                    onError?(error)
+            // Deteta se a Apple finalizou uma elocução anterior e começou uma nova após pausa
+            if Self.shouldCommitPreviousUtterance(previous: lastRawSegmentString, new: rawFormatted) {
+                accumulatedTranscription = Self.combineTranscriptions(accumulatedTranscription, lastRawSegmentString)
+                currentSegmentTranscription = rawFormatted
+            } else {
+                currentSegmentTranscription = rawFormatted
+            }
+            lastRawSegmentString = rawFormatted
+
+            if isFinal {
+                // Segmento finalizado pela Apple
+                accumulatedTranscription = Self.combineTranscriptions(accumulatedTranscription, currentSegmentTranscription)
+                currentSegmentTranscription = ""
+                lastRawSegmentString = ""
+
+                let fullText = accumulatedTranscription
+                onTranscriptionCallback?(fullText, false)
+
+                // Se o utilizador ainda estiver a gravar, inicia imediatamente nova tarefa para não perder fala subsequente
+                if _isRecognizing {
+                    restartTaskUnderActiveSessionLocked()
                 }
-                self.resetSession()
+            } else {
+                let fullText = Self.combineTranscriptions(accumulatedTranscription, currentSegmentTranscription)
+                onTranscriptionCallback?(fullText, false)
             }
         }
+
+        if let error = error {
+            let nsError = error as NSError
+            Self.logger.debug("Mensagem da tarefa de reconhecimento (code \(nsError.code)): \(error.localizedDescription, privacy: .public)")
+
+            let isDictationDisabled = nsError.localizedDescription.localizedCaseInsensitiveContains("dictation")
+                || nsError.localizedDescription.localizedCaseInsensitiveContains("siri")
+                || (nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 1700)
+                || nsError.code == 201
+
+            if isDictationDisabled {
+                onErrorCallback?(SpeechRecognitionError.dictationDisabled)
+                resetSessionLocked()
+                return
+            } else if nsError.code == 1110 {
+                onErrorCallback?(SpeechRecognitionError.notAuthorized)
+                resetSessionLocked()
+                return
+            }
+
+            // Erros não-fatais de timeout ou fim de tarefa da Apple (ex: 203, 216, cancelled):
+            // Comita o que já foi captado e reabre uma nova tarefa sob a mesma sessão ativa!
+            if _isRecognizing {
+                if !currentSegmentTranscription.isEmpty {
+                    accumulatedTranscription = Self.combineTranscriptions(accumulatedTranscription, currentSegmentTranscription)
+                    currentSegmentTranscription = ""
+                    lastRawSegmentString = ""
+                }
+                restartTaskUnderActiveSessionLocked()
+            }
+        }
+    }
+
+    /// Reinicia uma nova tarefa SFSpeechRecognitionTask sob uma sessão ativa em curso.
+    private func restartTaskUnderActiveSessionLocked() {
+        guard _isRecognizing, let rec = recognizers[effectiveLanguage] else { return }
+
+        let newRequest = SFSpeechAudioBufferRecognitionRequest()
+        newRequest.shouldReportPartialResults = true
+        newRequest.requiresOnDeviceRecognition = requiresOnDeviceRecognition && rec.supportsOnDeviceRecognition
+        let newRequestId = UUID()
+
+        self.currentRequest = newRequest
+        self.currentRequestId = newRequestId
+
+        self.currentTask = rec.recognitionTask(with: newRequest) { [weak self] result, error in
+            self?.handleRecognitionResult(result: result, error: error, requestId: newRequestId)
+        }
+
+        scheduleRotationTimer()
+    }
+
+    /// Rotação proativa periódica aos 45 segundos para contornar o limite de 60s da Apple sem paragens.
+    private func scheduleRotationTimer() {
+        rotationTimerTask?.cancel()
+        rotationTimerTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: UInt64(45 * 1_000_000_000))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled, let self = self else { return }
+            self.rotateTaskProactively()
+        }
+    }
+
+    private func rotateTaskProactively() {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard _isRecognizing, let rec = recognizers[effectiveLanguage] else { return }
+        Self.logger.info("Executando rotação proativa de tarefa de fala (45s) para suportar transcrição contínua")
+
+        if !currentSegmentTranscription.isEmpty {
+            accumulatedTranscription = Self.combineTranscriptions(accumulatedTranscription, currentSegmentTranscription)
+            currentSegmentTranscription = ""
+            lastRawSegmentString = ""
+        }
+
+        let oldRequest = currentRequest
+        let newRequest = SFSpeechAudioBufferRecognitionRequest()
+        newRequest.shouldReportPartialResults = true
+        newRequest.requiresOnDeviceRecognition = requiresOnDeviceRecognition && rec.supportsOnDeviceRecognition
+        let newRequestId = UUID()
+
+        self.currentRequest = newRequest
+        self.currentRequestId = newRequestId
+
+        self.currentTask = rec.recognitionTask(with: newRequest) { [weak self] result, error in
+            self?.handleRecognitionResult(result: result, error: error, requestId: newRequestId)
+        }
+
+        oldRequest?.endAudio()
+        scheduleRotationTimer()
     }
 
     /// Alimenta um buffer de áudio em memória diretamente no pedido ativo.
@@ -222,20 +368,54 @@ public class SpeechRecognitionService: @unchecked Sendable {
         request.append(buffer)
     }
 
-    /// Notifica o fim do fluxo de áudio para produzir o resultado final.
-    public func finishAudio() {
+    /// Notifica o fim do fluxo de áudio da sessão e comita o texto final de forma síncrona.
+    @discardableResult
+    public func finishAudio() -> String {
         lock.lock()
-        defer { lock.unlock() }
+        rotationTimerTask?.cancel()
+        rotationTimerTask = nil
 
-        guard _isRecognizing, let request = currentRequest else {
-            Self.logger.debug("finishAudio ignorado: nenhuma sessão de reconhecimento ativa")
-            return
+        currentRequest?.endAudio()
+
+        if !currentSegmentTranscription.isEmpty {
+            accumulatedTranscription = Self.combineTranscriptions(accumulatedTranscription, currentSegmentTranscription)
+            currentSegmentTranscription = ""
+            lastRawSegmentString = ""
         }
-        Self.logger.info("Finalizando fluxo de áudio da sessão de reconhecimento")
-        request.endAudio()
+
+        let result = accumulatedTranscription
+        resetSessionLocked()
+        lock.unlock()
+        return result
     }
 
-    /// Cancela imediatamente a sessão em curso e liberta recursos.
+    /// Notifica o fim do fluxo de áudio e aguarda até 500ms pelo esvaziamento final do pipeline de buffers em RAM.
+    public func finishAudioAndGetFinalTranscription(timeoutSeconds: TimeInterval = 0.5) async -> String {
+        let isRec: Bool = lock.withLock {
+            rotationTimerTask?.cancel()
+            rotationTimerTask = nil
+            guard _isRecognizing else { return false }
+            currentRequest?.endAudio()
+            return true
+        }
+
+        if !isRec {
+            return finishAudio()
+        }
+
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        while Date() < deadline {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            let stillPending = lock.withLock { !currentSegmentTranscription.isEmpty }
+            if !stillPending {
+                break
+            }
+        }
+
+        return finishAudio()
+    }
+
+    /// Cancela imediatamente a sessão em curso e liberta todos os recursos.
     public func cancel() {
         lock.lock()
         defer { lock.unlock() }
@@ -243,19 +423,70 @@ public class SpeechRecognitionService: @unchecked Sendable {
         if _isRecognizing {
             Self.logger.info("Cancelando sessão de reconhecimento de fala ativa")
         }
+        rotationTimerTask?.cancel()
+        rotationTimerTask = nil
+
         currentRequest?.endAudio()
         currentTask?.cancel()
-        currentTask = nil
-        currentRequest = nil
-        _isRecognizing = false
+        resetSessionLocked()
     }
 
-    private func resetSession() {
-        lock.lock()
-        defer { lock.unlock() }
-
+    private func resetSessionLocked() {
         currentRequest = nil
         currentTask = nil
         _isRecognizing = false
+        accumulatedTranscription = ""
+        currentSegmentTranscription = ""
+        lastRawSegmentString = ""
+        rotationTimerTask?.cancel()
+        rotationTimerTask = nil
+    }
+
+    // MARK: - Algoritmos de Agregação e Deteção de Fronteiras de Fala
+
+    /// Avalia se a nova cadeia de caracteres indica o início de uma nova elocução após uma pausa/frase anterior.
+    public static func shouldCommitPreviousUtterance(previous: String, new: String) -> Bool {
+        let prevTrimmed = previous.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newTrimmed = new.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !prevTrimmed.isEmpty, !newTrimmed.isEmpty else { return false }
+
+        // Se a nova elocução contém a anterior ou começa por ela, é uma expansão contínua
+        if newTrimmed.hasPrefix(prevTrimmed) || newTrimmed.localizedCaseInsensitiveContains(prevTrimmed) {
+            return false
+        }
+
+        let prevWords = prevTrimmed.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        let newWords = newTrimmed.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+
+        guard !prevWords.isEmpty, !newWords.isEmpty else { return false }
+
+        // Conta palavras coincidentes no prefixo
+        var matchingPrefixWords = 0
+        let minCount = min(prevWords.count, newWords.count)
+        for i in 0..<minCount {
+            if prevWords[i].caseInsensitiveCompare(newWords[i]) == .orderedSame {
+                matchingPrefixWords += 1
+            } else {
+                break
+            }
+        }
+
+        // Se pelo menos metade das palavras do início coincide, é refinamento da mesma frase
+        if prevWords.count > 0 && Double(matchingPrefixWords) / Double(prevWords.count) >= 0.5 {
+            return false
+        }
+
+        // Caso contrário, a Apple iniciou uma nova frase/elocução independente após uma pausa
+        return true
+    }
+
+    /// Combina dois blocos textuais mantendo pontuação e espaçamento higiénico.
+    public static func combineTranscriptions(_ a: String, _ b: String) -> String {
+        let aTrimmed = a.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bTrimmed = b.trimmingCharacters(in: .whitespacesAndNewlines)
+        if aTrimmed.isEmpty { return bTrimmed }
+        if bTrimmed.isEmpty { return aTrimmed }
+        return "\(aTrimmed) \(bTrimmed)"
     }
 }

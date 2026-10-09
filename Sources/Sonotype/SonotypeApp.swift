@@ -307,11 +307,21 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         let originalFinish = finalCoordinator.onFinishRecording
         finalCoordinator.onFinishRecording = { [weak self, weak audioCaptureService, weak speechService, weak repository, weak postProcessor, weak injectionService, weak languageDetector] reason in
             audioCaptureService?.stopCapture()
-            speechService?.finishAudio()
+
+            // Obter a transcrição completa acumulada de toda a gravação contínua
+            let finalTranscription: String
+            if let speechService = speechService {
+                finalTranscription = await speechService.finishAudioAndGetFinalTranscription()
+            } else {
+                finalTranscription = self?.currentTranscription ?? ""
+            }
 
             guard let self = self else { return }
 
-            let rawText = self.currentTranscription
+            let candidateText = !finalTranscription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? finalTranscription
+                : self.currentTranscription
+            let rawText = candidateText
             let trimmedText = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
 
             defer {

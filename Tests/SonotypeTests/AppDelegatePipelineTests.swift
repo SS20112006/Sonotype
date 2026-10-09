@@ -61,10 +61,12 @@ final class MockSpeechRecognitionService: SpeechRecognitionService, @unchecked S
         appendedBuffersCount += 1
     }
 
-    override func finishAudio() {
+    @discardableResult
+    override func finishAudio() -> String {
         lock.lock()
         defer { lock.unlock() }
         finishAudioCalled = true
+        return ""
     }
 
     override func cancel() {

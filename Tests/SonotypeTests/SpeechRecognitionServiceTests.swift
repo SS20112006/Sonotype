@@ -78,4 +78,62 @@ final class SpeechRecognitionServiceTests: XCTestCase {
         XCTAssertNotNil(err7.errorDescription)
         XCTAssertTrue(err7.errorDescription?.contains("Ditado") == true)
     }
+
+    func testUtteranceBoundaryCommitDetection() {
+        // Continuação simples: nova frase começa com a anterior -> não comita
+        XCTAssertFalse(
+            SpeechRecognitionService.shouldCommitPreviousUtterance(previous: "Olá", new: "Olá mundo"),
+            "Expansão direta de frase não deve ser considerada nova elocução"
+        )
+
+        // Correção pontual com prefixo comum >= 50% -> não comita
+        XCTAssertFalse(
+            SpeechRecognitionService.shouldCommitPreviousUtterance(previous: "Eu vou falar com o João", new: "Eu vou falar com a Maria"),
+            "Correção de final de frase deve substituir e não duplicar"
+        )
+
+        // Nova elocução após pausa (o bug relatado pelo utilizador): frase anterior longa, nova frase curta e sem prefixo comum -> DEVE comitar!
+        XCTAssertTrue(
+            SpeechRecognitionService.shouldCommitPreviousUtterance(
+                previous: "Estive a falar cerca de quarenta segundos a um minuto e expliquei tudo",
+                new: "duas palavras"
+            ),
+            "Nova elocução sem prefixo comum após pausa deve ser comitada para não perder o texto anterior"
+        )
+
+        // Expansão que contém a frase anterior -> não comita
+        XCTAssertFalse(
+            SpeechRecognitionService.shouldCommitPreviousUtterance(previous: "projeto", new: "o projeto todo"),
+            "Frase nova que engloba a anterior não deve comitar previamente"
+        )
+
+        // Strings vazias -> não comita
+        XCTAssertFalse(SpeechRecognitionService.shouldCommitPreviousUtterance(previous: "", new: "teste"))
+        XCTAssertFalse(SpeechRecognitionService.shouldCommitPreviousUtterance(previous: "teste", new: ""))
+    }
+
+    func testCombineTranscriptions() {
+        XCTAssertEqual(
+            SpeechRecognitionService.combineTranscriptions("Primeira parte", "segunda parte"),
+            "Primeira parte segunda parte"
+        )
+        XCTAssertEqual(
+            SpeechRecognitionService.combineTranscriptions("", "apenas nova"),
+            "apenas nova"
+        )
+        XCTAssertEqual(
+            SpeechRecognitionService.combineTranscriptions("apenas anterior", ""),
+            "apenas anterior"
+        )
+        XCTAssertEqual(
+            SpeechRecognitionService.combineTranscriptions("   ", "   "),
+            ""
+        )
+    }
+
+    func testFinishAudioAsyncLifecycle() async {
+        let text = await service.finishAudioAndGetFinalTranscription(timeoutSeconds: 0.1)
+        XCTAssertEqual(text, "")
+        XCTAssertFalse(service.isRecognizing)
+    }
 }
