@@ -101,6 +101,20 @@ final class TextPostProcessorTests: XCTestCase {
         XCTAssertEqual(processed, "olá, tudo bem.\nsegunda linha.")
     }
 
+    // MARK: - Normalização de Termos Técnicos em Inglês (Code-Switching)
+
+    func testTechnicalTermsNormalizationInPortuguese() {
+        let input = "preciso de fazer o de play e a bilde e depois dar opem no app ponto final"
+        let processed = processor.process(text: input, language: .portuguesePT)
+        XCTAssertEqual(processed, "Preciso de fazer o deploy e a build e depois dar open no app.")
+    }
+
+    func testPullRequestAndPipelineNormalization() {
+        let input = "abre um pula request para a pipe line e verifica os end points ponto final"
+        let processed = processor.process(text: input, language: .portuguesePT)
+        XCTAssertEqual(processed, "Abre um pull request para a pipeline e verifica os endpoints.")
+    }
+
     // MARK: - Casos de Fronteira
 
     func testEmptyAndWhitespaceInput() {

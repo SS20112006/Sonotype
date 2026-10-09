@@ -137,7 +137,7 @@ final class SpeechRecognitionServiceTests: XCTestCase {
         )
         XCTAssertEqual(
             SpeechRecognitionService.combineTranscriptions("Primeira frase", "Segunda frase"),
-            "Primeira frase. Segunda frase"
+            "Primeira frase Segunda frase"
         )
         XCTAssertEqual(
             SpeechRecognitionService.combineTranscriptions("Primeira frase.", "Segunda frase"),

@@ -72,6 +72,21 @@ public final class PunctuationService: Sendable {
     private func applyOralCommands(to input: String, language: SpeechLanguage) -> String {
         var text = input
 
+        // Protege locuções nominais legítimas para não serem convertidas indevidamente em pontos
+        if language.isPortuguese {
+            text = replaceRegex(
+                pattern: #"(?i)\b(neste|nesse|deste|desse|a\s+este|a\s+esse|o|um|outro|algum|nenhum|bom|mau|certo|primeiro|segundo|terceiro|meu|seu|nosso|teu)\s+ponto(?!\s+(?:e\s+v[ií]rgula|final|de\s+interroga[cç][aã]o|de\s+exclama[cç][aã]o))\b"#,
+                in: text,
+                with: "$1 __SONOTYPE_PONTO__"
+            )
+        } else {
+            text = replaceRegex(
+                pattern: #"(?i)\b(grace|time|waiting|trial|short|long|extended)\s+period(?!\s+of\s+time)\b"#,
+                in: text,
+                with: "$1 __SONOTYPE_PERIOD__"
+            )
+        }
+
         let commands = language.isPortuguese
             ? portugueseOralCommands()
             : englishOralCommands()
@@ -82,6 +97,13 @@ public final class PunctuationService: Sendable {
                 : "(?i)\(command.pattern)"
 
             text = replaceRegex(pattern: pattern, in: text, with: command.replacement)
+        }
+
+        // Restaura as palavras originais protegidas
+        if language.isPortuguese {
+            text = text.replacingOccurrences(of: "__SONOTYPE_PONTO__", with: "ponto")
+        } else {
+            text = text.replacingOccurrences(of: "__SONOTYPE_PERIOD__", with: "period")
         }
 
         return text

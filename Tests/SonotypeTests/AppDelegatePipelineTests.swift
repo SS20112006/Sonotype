@@ -35,12 +35,14 @@ final class MockSpeechRecognitionService: SpeechRecognitionService, @unchecked S
     var cancelCalled = false
     var shouldThrowOnStart = false
     var capturedLanguage: SpeechLanguage?
+    var capturedContextualStrings: [String] = []
     var appendedBuffersCount = 0
     var savedTranscriptionUpdate: (@Sendable (String, Bool) -> Void)?
     var savedErrorCallback: (@Sendable (Error) -> Void)?
 
     override func startRecognition(
         language: SpeechLanguage = .portuguesePT,
+        contextualStrings: [String] = [],
         onTranscriptionUpdate: @escaping @Sendable (String, Bool) -> Void,
         onError: (@Sendable (Error) -> Void)? = nil
     ) throws {
@@ -51,6 +53,7 @@ final class MockSpeechRecognitionService: SpeechRecognitionService, @unchecked S
         }
         startRecognitionCalled = true
         capturedLanguage = language
+        capturedContextualStrings = contextualStrings
         savedTranscriptionUpdate = onTranscriptionUpdate
         savedErrorCallback = onError
     }

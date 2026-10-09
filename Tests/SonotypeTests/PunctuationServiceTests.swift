@@ -27,6 +27,12 @@ final class PunctuationServiceTests: XCTestCase {
         XCTAssertEqual(output, "o meu ponto de vista é diferente")
     }
 
+    func testPortugueseExpressionsWithPontoPreserved() {
+        let input = "neste ponto acho que ainda está estranho e a este ponto temos de rever"
+        let output = service.process(text: input, language: .portuguesePT)
+        XCTAssertEqual(output, "neste ponto acho que ainda está estranho e a este ponto temos de rever")
+    }
+
     func testPortugueseNewLineAndParagraphCommands() {
         let input = "primeira frase nova linha segunda frase novo parágrafo terceira frase"
         let output = service.process(text: input, language: .portuguesePT)

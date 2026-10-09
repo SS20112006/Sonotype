@@ -52,12 +52,44 @@ public class SpeechRecognitionService: @unchecked Sendable {
     private var lastResultTime: Date?
     private var isFinishingSession: Bool = false
     private var effectiveLanguage: SpeechLanguage = .portuguesePT
+    private var activeContextualStrings: [String] = []
     private var onTranscriptionCallback: (@Sendable (String, Bool) -> Void)?
     private var onErrorCallback: (@Sendable (Error) -> Void)?
     private var rotationTimerTask: Task<Void, Never>?
 
-    /// Limiar temporal (em segundos) para considerar pausa de fala entre elocuções.
-    public let pauseCommitThresholdSeconds: TimeInterval = 1.0
+    /// Limiar temporal (em segundos) para considerar pausa real de fala entre elocuções.
+    public let pauseCommitThresholdSeconds: TimeInterval = 1.8
+
+    /// Vocabulário técnico em inglês pré-carregado para suportar termos de desenvolvimento misturados na fala.
+    public static let defaultTechnicalVocabulary: [String] = [
+        "deploy", "deployed", "deploying", "deployment",
+        "build", "built", "building",
+        "open", "opened", "opening",
+        "commit", "committed", "committing",
+        "push", "pushed", "pushing",
+        "pull", "pull request", "PR", "PRs",
+        "merge", "merged", "merging",
+        "branch", "branches", "rebase", "checkout",
+        "release", "releases",
+        "bug", "bugs", "fix", "fixed", "hotfix", "bugfix",
+        "feature", "features", "pipeline", "pipelines",
+        "backend", "frontend", "fullstack",
+        "codebase", "repository", "repo",
+        "endpoint", "endpoints", "API", "APIs", "REST", "GraphQL",
+        "framework", "frameworks", "library", "libraries", "package",
+        "database", "DB", "schema", "query", "queries",
+        "cache", "caching", "token", "tokens",
+        "server", "servers", "client", "clients",
+        "cloud", "cluster", "node", "pod", "pods",
+        "docker", "container", "containers", "kubernetes", "k8s",
+        "stack", "microservice", "microservices",
+        "Swift", "SwiftUI", "Xcode", "macOS", "iOS",
+        "TypeScript", "JavaScript", "Python", "Rust", "Go",
+        "React", "Next.js", "Vue", "Git", "GitHub", "GitLab",
+        "sprint", "backlog", "standup", "task", "tasks",
+        "staging", "production", "prod", "dev", "test", "lint", "debug",
+        "terminal", "bash", "zsh", "script", "env", "config"
+    ]
 
     /// Intervalo de rotação proativa de tarefa (em segundos) para contornar o limite nativo de 60s da Apple.
     public let rotationIntervalSeconds: TimeInterval = 45.0
@@ -141,6 +173,7 @@ public class SpeechRecognitionService: @unchecked Sendable {
     /// O áudio é alimentado em streaming através de `appendBuffer(_:)` sem gravar nada em disco.
     public func startRecognition(
         language: SpeechLanguage = .portuguesePT,
+        contextualStrings: [String] = [],
         onTranscriptionUpdate: @escaping @Sendable (String, Bool) -> Void, // (texto, isFinal)
         onError: (@Sendable (Error) -> Void)? = nil
     ) throws {
@@ -198,6 +231,16 @@ public class SpeechRecognitionService: @unchecked Sendable {
         self.lastResultTime = nil
         self.isFinishingSession = false
         self.effectiveLanguage = effectiveLanguage
+
+        var combinedVocab = Set(Self.defaultTechnicalVocabulary)
+        for custom in contextualStrings {
+            let trimmed = custom.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                combinedVocab.insert(trimmed)
+            }
+        }
+        self.activeContextualStrings = Array(combinedVocab)
+
         self.onTranscriptionCallback = onTranscriptionUpdate
         self.onErrorCallback = onError
         self.currentRequestId = UUID()
@@ -207,6 +250,7 @@ public class SpeechRecognitionService: @unchecked Sendable {
         request.shouldReportPartialResults = true
         request.requiresOnDeviceRecognition = requiresOnDeviceRecognition && rec.supportsOnDeviceRecognition
         request.addsPunctuation = true
+        request.contextualStrings = self.activeContextualStrings
 
         self.currentRequest = request
         let requestId = self.currentRequestId
@@ -326,6 +370,7 @@ public class SpeechRecognitionService: @unchecked Sendable {
         newRequest.shouldReportPartialResults = true
         newRequest.requiresOnDeviceRecognition = requiresOnDeviceRecognition && rec.supportsOnDeviceRecognition
         newRequest.addsPunctuation = true
+        newRequest.contextualStrings = self.activeContextualStrings
         let newRequestId = UUID()
 
         self.currentRequest = newRequest
@@ -376,6 +421,7 @@ public class SpeechRecognitionService: @unchecked Sendable {
         newRequest.shouldReportPartialResults = true
         newRequest.requiresOnDeviceRecognition = requiresOnDeviceRecognition && rec.supportsOnDeviceRecognition
         newRequest.addsPunctuation = true
+        newRequest.contextualStrings = self.activeContextualStrings
         let newRequestId = UUID()
 
         self.currentRequest = newRequest
@@ -480,6 +526,7 @@ public class SpeechRecognitionService: @unchecked Sendable {
         currentSegmentTranscription = ""
         lastRawSegmentString = ""
         lastResultTime = nil
+        activeContextualStrings = []
         rotationTimerTask?.cancel()
         rotationTimerTask = nil
     }
@@ -532,26 +579,12 @@ public class SpeechRecognitionService: @unchecked Sendable {
     }
 
     /// Combina dois blocos textuais mantendo pontuação e espaçamento higiénico.
+    /// Respeita a pontuação nativa do motor de reconhecimento da Apple sem forçar períodos artificiais.
     public static func combineTranscriptions(_ a: String, _ b: String) -> String {
         let aTrimmed = a.trimmingCharacters(in: .whitespacesAndNewlines)
         let bTrimmed = b.trimmingCharacters(in: .whitespacesAndNewlines)
         if aTrimmed.isEmpty { return bTrimmed }
         if bTrimmed.isEmpty { return aTrimmed }
-
-        let terminalPunctuation: Set<Character> = [".", "!", "?", ":", ";", "…"]
-        if let last = aTrimmed.last, terminalPunctuation.contains(last) {
-            return "\(aTrimmed) \(bTrimmed)"
-        }
-
-        if let last = aTrimmed.last, last == "," {
-            return "\(aTrimmed) \(bTrimmed)"
-        }
-
-        // Se o novo bloco inicia com letra maiúscula (indicando nova frase independente após pausa),
-        // encerra a elocução anterior com ponto final se esta não tinha pontuação
-        if let first = bTrimmed.first, first.isUppercase {
-            return "\(aTrimmed). \(bTrimmed)"
-        }
 
         return "\(aTrimmed) \(bTrimmed)"
     }

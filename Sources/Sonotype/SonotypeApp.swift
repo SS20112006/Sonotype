@@ -229,9 +229,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
             }
 
             // Iniciar reconhecimento de voz para o idioma ativo
+            let customVocab: [String] = (try? self.repository?.fetchVocabulary().map { $0.word }) ?? []
             do {
                 try speechService.startRecognition(
                     language: self.activeLanguage,
+                    contextualStrings: customVocab,
                     onTranscriptionUpdate: { [weak self] text, _ in
                         if Thread.isMainThread {
                             MainActor.assumeIsolated {
