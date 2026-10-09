@@ -101,6 +101,24 @@ final class SpeechRecognitionServiceTests: XCTestCase {
             "Nova elocução sem prefixo comum após pausa deve ser comitada para não perder o texto anterior"
         )
 
+        // Nova elocução após pausa onde a frase encolheu para nova frase parcial: DEVE comitar!
+        XCTAssertTrue(
+            SpeechRecognitionService.shouldCommitPreviousUtterance(
+                previous: "Isto é muito importante para nós",
+                new: "Eu"
+            ),
+            "Início de nova frase curta após frase anterior de 6 palavras deve comitar"
+        )
+
+        // Nova elocução independente que difere em contagem de palavras
+        XCTAssertTrue(
+            SpeechRecognitionService.shouldCommitPreviousUtterance(
+                previous: "Eu acho que sim",
+                new: "Eu acho que não devemos ir"
+            ),
+            "Frase independente com contagem e sentido divergente deve comitar"
+        )
+
         // Expansão que contém a frase anterior -> não comita
         XCTAssertFalse(
             SpeechRecognitionService.shouldCommitPreviousUtterance(previous: "projeto", new: "o projeto todo"),

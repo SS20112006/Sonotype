@@ -49,10 +49,15 @@ public class SpeechRecognitionService: @unchecked Sendable {
     private var accumulatedTranscription: String = ""
     private var currentSegmentTranscription: String = ""
     private var lastRawSegmentString: String = ""
+    private var lastResultTime: Date?
+    private var isFinishingSession: Bool = false
     private var effectiveLanguage: SpeechLanguage = .portuguesePT
     private var onTranscriptionCallback: (@Sendable (String, Bool) -> Void)?
     private var onErrorCallback: (@Sendable (Error) -> Void)?
     private var rotationTimerTask: Task<Void, Never>?
+
+    /// Limiar temporal (em segundos) para considerar pausa de fala entre elocuções.
+    public let pauseCommitThresholdSeconds: TimeInterval = 1.0
 
     /// Intervalo de rotação proativa de tarefa (em segundos) para contornar o limite nativo de 60s da Apple.
     public let rotationIntervalSeconds: TimeInterval = 45.0
@@ -190,6 +195,8 @@ public class SpeechRecognitionService: @unchecked Sendable {
         self.accumulatedTranscription = ""
         self.currentSegmentTranscription = ""
         self.lastRawSegmentString = ""
+        self.lastResultTime = nil
+        self.isFinishingSession = false
         self.effectiveLanguage = effectiveLanguage
         self.onTranscriptionCallback = onTranscriptionUpdate
         self.onErrorCallback = onError
@@ -233,8 +240,20 @@ public class SpeechRecognitionService: @unchecked Sendable {
             let rawFormatted = result.bestTranscription.formattedString
             let isFinal = result.isFinal
 
-            // Deteta se a Apple finalizou uma elocução anterior e começou uma nova após pausa
-            if Self.shouldCommitPreviousUtterance(previous: lastRawSegmentString, new: rawFormatted) {
+            let now = Date()
+            let timeSinceLast = lastResultTime.map { now.timeIntervalSince($0) } ?? 0.0
+            lastResultTime = now
+
+            let prevTrimmed = lastRawSegmentString.trimmingCharacters(in: .whitespacesAndNewlines)
+            let newTrimmed = rawFormatted.trimmingCharacters(in: .whitespacesAndNewlines)
+            let isExpansion = !prevTrimmed.isEmpty && (newTrimmed.hasPrefix(prevTrimmed) || newTrimmed.localizedCaseInsensitiveContains(prevTrimmed))
+
+            // Se houve uma pausa silenciosa considerável (>= 1.0s) e a nova cadeia não é expansão da anterior
+            let hasPaused = !prevTrimmed.isEmpty && !newTrimmed.isEmpty && !isExpansion && timeSinceLast >= pauseCommitThresholdSeconds
+            let boundaryDetected = Self.shouldCommitPreviousUtterance(previous: lastRawSegmentString, new: rawFormatted)
+
+            // Deteta se a Apple iniciou uma nova elocução independente após pausa ou separação acústica
+            if hasPaused || boundaryDetected {
                 accumulatedTranscription = Self.combineTranscriptions(accumulatedTranscription, lastRawSegmentString)
                 currentSegmentTranscription = rawFormatted
             } else {
@@ -247,12 +266,13 @@ public class SpeechRecognitionService: @unchecked Sendable {
                 accumulatedTranscription = Self.combineTranscriptions(accumulatedTranscription, currentSegmentTranscription)
                 currentSegmentTranscription = ""
                 lastRawSegmentString = ""
+                lastResultTime = nil
 
                 let fullText = accumulatedTranscription
                 onTranscriptionCallback?(fullText, false)
 
-                // Se o utilizador ainda estiver a gravar, inicia imediatamente nova tarefa para não perder fala subsequente
-                if _isRecognizing {
+                // Se o utilizador ainda estiver a gravar e não estiver em processo de finalização, inicia imediatamente nova tarefa
+                if _isRecognizing && !isFinishingSession {
                     restartTaskUnderActiveSessionLocked()
                 }
             } else {
@@ -281,12 +301,13 @@ public class SpeechRecognitionService: @unchecked Sendable {
             }
 
             // Erros não-fatais de timeout ou fim de tarefa da Apple (ex: 203, 216, cancelled):
-            // Comita o que já foi captado e reabre uma nova tarefa sob a mesma sessão ativa!
-            if _isRecognizing {
+            // Comita o que já foi captado e reabre uma nova tarefa sob a mesma sessão ativa se não estiver a finalizar!
+            if _isRecognizing && !isFinishingSession {
                 if !currentSegmentTranscription.isEmpty {
                     accumulatedTranscription = Self.combineTranscriptions(accumulatedTranscription, currentSegmentTranscription)
                     currentSegmentTranscription = ""
                     lastRawSegmentString = ""
+                    lastResultTime = nil
                 }
                 restartTaskUnderActiveSessionLocked()
             }
@@ -295,7 +316,10 @@ public class SpeechRecognitionService: @unchecked Sendable {
 
     /// Reinicia uma nova tarefa SFSpeechRecognitionTask sob uma sessão ativa em curso.
     private func restartTaskUnderActiveSessionLocked() {
-        guard _isRecognizing, let rec = recognizers[effectiveLanguage] else { return }
+        guard _isRecognizing, !isFinishingSession, let rec = recognizers[effectiveLanguage] else { return }
+
+        let oldRequest = currentRequest
+        let oldTask = currentTask
 
         let newRequest = SFSpeechAudioBufferRecognitionRequest()
         newRequest.shouldReportPartialResults = true
@@ -308,6 +332,9 @@ public class SpeechRecognitionService: @unchecked Sendable {
         self.currentTask = rec.recognitionTask(with: newRequest) { [weak self] result, error in
             self?.handleRecognitionResult(result: result, error: error, requestId: newRequestId)
         }
+
+        oldRequest?.endAudio()
+        oldTask?.cancel()
 
         scheduleRotationTimer()
     }
@@ -330,16 +357,19 @@ public class SpeechRecognitionService: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        guard _isRecognizing, let rec = recognizers[effectiveLanguage] else { return }
+        guard _isRecognizing, !isFinishingSession, let rec = recognizers[effectiveLanguage] else { return }
         Self.logger.info("Executando rotação proativa de tarefa de fala (45s) para suportar transcrição contínua")
 
         if !currentSegmentTranscription.isEmpty {
             accumulatedTranscription = Self.combineTranscriptions(accumulatedTranscription, currentSegmentTranscription)
             currentSegmentTranscription = ""
             lastRawSegmentString = ""
+            lastResultTime = nil
         }
 
         let oldRequest = currentRequest
+        let oldTask = currentTask
+
         let newRequest = SFSpeechAudioBufferRecognitionRequest()
         newRequest.shouldReportPartialResults = true
         newRequest.requiresOnDeviceRecognition = requiresOnDeviceRecognition && rec.supportsOnDeviceRecognition
@@ -353,6 +383,8 @@ public class SpeechRecognitionService: @unchecked Sendable {
         }
 
         oldRequest?.endAudio()
+        oldTask?.cancel()
+
         scheduleRotationTimer()
     }
 
@@ -372,29 +404,34 @@ public class SpeechRecognitionService: @unchecked Sendable {
     @discardableResult
     public func finishAudio() -> String {
         lock.lock()
+        defer { lock.unlock() }
+
+        isFinishingSession = true
         rotationTimerTask?.cancel()
         rotationTimerTask = nil
 
         currentRequest?.endAudio()
+        currentTask?.cancel()
 
         if !currentSegmentTranscription.isEmpty {
             accumulatedTranscription = Self.combineTranscriptions(accumulatedTranscription, currentSegmentTranscription)
             currentSegmentTranscription = ""
             lastRawSegmentString = ""
+            lastResultTime = nil
         }
 
         let result = accumulatedTranscription
         resetSessionLocked()
-        lock.unlock()
         return result
     }
 
     /// Notifica o fim do fluxo de áudio e aguarda até 500ms pelo esvaziamento final do pipeline de buffers em RAM.
     public func finishAudioAndGetFinalTranscription(timeoutSeconds: TimeInterval = 0.5) async -> String {
         let isRec: Bool = lock.withLock {
+            guard _isRecognizing else { return false }
+            isFinishingSession = true
             rotationTimerTask?.cancel()
             rotationTimerTask = nil
-            guard _isRecognizing else { return false }
             currentRequest?.endAudio()
             return true
         }
@@ -406,7 +443,7 @@ public class SpeechRecognitionService: @unchecked Sendable {
         let deadline = Date().addingTimeInterval(timeoutSeconds)
         while Date() < deadline {
             try? await Task.sleep(nanoseconds: 50_000_000)
-            let stillPending = lock.withLock { !currentSegmentTranscription.isEmpty }
+            let stillPending = lock.withLock { !currentSegmentTranscription.isEmpty && _isRecognizing }
             if !stillPending {
                 break
             }
@@ -435,9 +472,11 @@ public class SpeechRecognitionService: @unchecked Sendable {
         currentRequest = nil
         currentTask = nil
         _isRecognizing = false
+        isFinishingSession = false
         accumulatedTranscription = ""
         currentSegmentTranscription = ""
         lastRawSegmentString = ""
+        lastResultTime = nil
         rotationTimerTask?.cancel()
         rotationTimerTask = nil
     }
@@ -461,6 +500,11 @@ public class SpeechRecognitionService: @unchecked Sendable {
 
         guard !prevWords.isEmpty, !newWords.isEmpty else { return false }
 
+        // Se a frase encolheu significativamente (ex: de 3+ palavras para 1 ou 2), a Apple iniciou uma nova elocução
+        if prevWords.count >= 3 && newWords.count <= prevWords.count - 2 {
+            return true
+        }
+
         // Conta palavras coincidentes no prefixo
         var matchingPrefixWords = 0
         let minCount = min(prevWords.count, newWords.count)
@@ -472,8 +516,11 @@ public class SpeechRecognitionService: @unchecked Sendable {
             }
         }
 
-        // Se pelo menos metade das palavras do início coincide, é refinamento da mesma frase
-        if prevWords.count > 0 && Double(matchingPrefixWords) / Double(prevWords.count) >= 0.5 {
+        // Se o número de palavras for muito similar e a maioria substancial coincidir (>= 60%),
+        // trata-se de refinamento/correção da mesma elocução (ex: "para a caça" -> "para casa" ou "com o João" -> "com a Maria")
+        let wordCountDiff = abs(prevWords.count - newWords.count)
+        let matchRatio = Double(matchingPrefixWords) / Double(prevWords.count)
+        if wordCountDiff <= 1 && matchRatio >= 0.6 {
             return false
         }
 
