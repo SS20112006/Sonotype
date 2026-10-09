@@ -328,7 +328,7 @@ public final class PersistenceRepository {
         try fetchStat(for: Date())
     }
 
-    public func fetchDailyStats(limit: Int = 35) throws -> [SessionStat] {
+    public func fetchDailyStats(limit: Int = 365) throws -> [SessionStat] {
         var descriptor = FetchDescriptor<SessionStat>(
             sortBy: [SortDescriptor(\SessionStat.date, order: .reverse)]
         )
@@ -354,7 +354,7 @@ public final class PersistenceRepository {
             enWords += stat.englishWords
         }
 
-        let typingMinutes = Double(totalWords) / 40.0
+        let typingMinutes = Double(totalWords) / 45.0
         let speakingMinutes = totalDuration / 60.0
         let timeSaved = max(0.0, typingMinutes - speakingMinutes)
 

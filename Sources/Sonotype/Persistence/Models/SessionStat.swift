@@ -43,9 +43,9 @@ public final class SessionStat {
         return String(format: "%04d-%02d-%02d", year, month, day)
     }
 
-    /// Estima o tempo poupado em minutos considerando a taxa média de digitação humana (~40 ppm).
+    /// Estima o tempo poupado em minutos considerando a taxa média de digitação humana (~45 ppm).
     public var estimatedTimeSavedMinutes: Double {
-        let typingMinutes = Double(totalWords) / 40.0
+        let typingMinutes = Double(totalWords) / 45.0
         let speakingMinutes = totalDurationSeconds / 60.0
         return max(0.0, typingMinutes - speakingMinutes)
     }

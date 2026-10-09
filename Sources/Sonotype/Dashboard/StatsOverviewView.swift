@@ -33,7 +33,7 @@ public struct StatsOverviewView: View {
                     statMetricCard(
                         title: "Tempo Poupado Estimado",
                         value: formattedTimeSaved,
-                        subtitle: "Face à velocidade média de dactilografia manual (40 PPM).",
+                        subtitle: "Face à velocidade média de dactilografia manual (45 PPM).",
                         icon: "bolt.fill",
                         tint: .orange
                     )

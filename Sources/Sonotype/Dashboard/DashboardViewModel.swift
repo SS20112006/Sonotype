@@ -187,14 +187,43 @@ public final class DashboardViewModel: Sendable {
         }
     }
 
-    /// Carrega as estatísticas diárias para o heatmap de atividade e cálculo de streaks.
+    /// Carrega as estatísticas diárias para o heatmap/calendário de atividade e cálculo de streaks.
     public func loadDailyStats() {
         do {
-            dailyStats = try repository.fetchDailyStats(limit: 35)
+            dailyStats = try repository.fetchDailyStats(limit: 365)
         } catch {
             Self.logger.error("Falha ao carregar estatísticas diárias: \(error.localizedDescription, privacy: .public)")
             dailyStats = []
         }
+    }
+
+    // MARK: - Métricas de Produtividade & Comparação de Tempo (Voz vs Digitação)
+
+    /// Velocidade média humana de digitação em teclado (~45 palavras por minuto).
+    /// Previsto no roadmap V2 teste interativo de dactilografia para personalização granular.
+    public static let benchmarkTypingWPM: Double = 45.0
+
+    /// Duração estimada em segundos que o utilizador levaria a digitar o total de palavras ao teclado.
+    public var estimatedTypingSeconds: Double {
+        let words = Double(stats.totalWords)
+        return (words / Self.benchmarkTypingWPM) * 60.0
+    }
+
+    /// Duração acumulada em segundos que o utilizador demorou efetivamente a falar.
+    public var totalSpeakingSeconds: Double {
+        stats.totalDurationSeconds
+    }
+
+    /// Diferença líquida de tempo poupado em segundos (tempo a escrever menos tempo a falar).
+    public var timeSavedSeconds: Double {
+        max(0.0, estimatedTypingSeconds - totalSpeakingSeconds)
+    }
+
+    /// Fator multiplicador de velocidade ao ditar comparativamente a escrever no teclado.
+    public var speedupMultiplier: Double {
+        guard totalSpeakingSeconds > 0, stats.totalWords > 0 else { return 3.5 }
+        let mult = estimatedTypingSeconds / totalSpeakingSeconds
+        return max(1.0, mult)
     }
 
     /// Retorna os dias consecutivos ativos de utilização (streak atual).

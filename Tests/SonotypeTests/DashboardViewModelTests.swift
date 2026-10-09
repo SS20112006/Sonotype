@@ -350,4 +350,29 @@ final class DashboardViewModelTests: XCTestCase {
         viewModel.clearError()
         XCTAssertNil(viewModel.errorMessage)
     }
+
+    // MARK: - 13. Métricas Comparativas de Produtividade (Voz vs Digitação)
+
+    func testProductivityComparisonMetrics() throws {
+        XCTAssertEqual(DashboardViewModel.benchmarkTypingWPM, 45.0)
+
+        // Com base de dados vazia
+        XCTAssertEqual(viewModel.totalSpeakingSeconds, 0.0)
+        XCTAssertEqual(viewModel.estimatedTypingSeconds, 0.0)
+        XCTAssertEqual(viewModel.timeSavedSeconds, 0.0)
+        XCTAssertEqual(viewModel.speedupMultiplier, 3.5)
+
+        // 90 palavras ditadas em 15 segundos (~360 PPM em fala)
+        // A escrever a 45 PPM demoraria: (90 / 45) * 60 = 120 segundos (2 minutos)
+        // Tempo poupado: 120 - 15 = 105 segundos (1m 45s)
+        // Fator multiplicador: 120 / 15 = 8.0x
+        try repository.recordTranscription(text: String(repeating: "palavra ", count: 90), duration: 15.0, language: "pt-PT")
+        viewModel.loadAll()
+
+        XCTAssertEqual(viewModel.stats.totalWords, 90)
+        XCTAssertEqual(viewModel.totalSpeakingSeconds, 15.0, accuracy: 0.1)
+        XCTAssertEqual(viewModel.estimatedTypingSeconds, 120.0, accuracy: 0.1)
+        XCTAssertEqual(viewModel.timeSavedSeconds, 105.0, accuracy: 0.1)
+        XCTAssertEqual(viewModel.speedupMultiplier, 8.0, accuracy: 0.1)
+    }
 }

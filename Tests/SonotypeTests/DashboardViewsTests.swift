@@ -41,6 +41,23 @@ final class DashboardViewsTests: XCTestCase {
         XCTAssertNotNil(homeView.body)
     }
 
+    func testHomeOverviewViewWithPopulatedDataAndCalendarRendering() throws {
+        let calendar = Calendar.current
+        let today = Date()
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+
+        try repository.recordTranscription(text: "Ditado do dia de hoje com várias palavras", duration: 4.0, language: "pt-PT", date: today)
+        try repository.recordTranscription(text: "Ditado do dia de ontem para gerar histórico", duration: 3.5, language: "pt-PT", date: yesterday)
+
+        viewModel.loadAll()
+        XCTAssertEqual(viewModel.dailyStats.count, 2)
+        XCTAssertEqual(viewModel.currentStreakDays, 2)
+        XCTAssertEqual(viewModel.activeDaysCount, 2)
+
+        let homeView = HomeOverviewView(viewModel: viewModel)
+        XCTAssertNotNil(homeView.body)
+    }
+
     // MARK: - 2. Inicialização e Subviews de HistoryListView
 
     func testHistoryListViewCreation() throws {
