@@ -40,15 +40,31 @@ public final class PunctuationService: Sendable {
 
         if oralCommandsEnabled {
             result = applyOralCommands(to: result, language: language)
+            result = adjustInterrogativePunctuation(result, language: language)
         }
 
         result = normalizePunctuationSpacing(result)
 
         if autoFinalPeriod {
             result = applyFinalPunctuationIfNeeded(result)
+            if oralCommandsEnabled {
+                result = adjustInterrogativePunctuation(result, language: language)
+            }
         }
 
         return result
+    }
+
+    /// Ajusta a pontuação terminal de frases interrogativas inequívocas (ex.: iniciadas por "Achas que", "Será que", "O que achas", "Como estás").
+    public func adjustInterrogativePunctuation(_ input: String, language: SpeechLanguage) -> String {
+        let pattern: String
+        if language.isPortuguese {
+            pattern = #"(?i)(?<=^|[.?!]\s)(achas que|acha que|acham que|ser[aá] que|o que achas|o que acha|como est[aá]s|como est[aá]|por que [eé] que|porqu[eê] [eé] que|ser[aá] poss[ií]vel)([^.?!]+)\."#
+        } else {
+            pattern = #"(?i)(?<=^|[.?!]\s)(do you think|is it possible|are you sure|how are you|what do you think)([^.?!]+)\."#
+        }
+
+        return replaceRegex(pattern: pattern, in: input, with: "$1$2?")
     }
 
     // MARK: - Comandos Orais por Idioma

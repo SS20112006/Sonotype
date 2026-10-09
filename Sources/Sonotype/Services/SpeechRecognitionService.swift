@@ -206,6 +206,7 @@ public class SpeechRecognitionService: @unchecked Sendable {
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.requiresOnDeviceRecognition = requiresOnDeviceRecognition && rec.supportsOnDeviceRecognition
+        request.addsPunctuation = true
 
         self.currentRequest = request
         let requestId = self.currentRequestId
@@ -324,6 +325,7 @@ public class SpeechRecognitionService: @unchecked Sendable {
         let newRequest = SFSpeechAudioBufferRecognitionRequest()
         newRequest.shouldReportPartialResults = true
         newRequest.requiresOnDeviceRecognition = requiresOnDeviceRecognition && rec.supportsOnDeviceRecognition
+        newRequest.addsPunctuation = true
         let newRequestId = UUID()
 
         self.currentRequest = newRequest
@@ -373,6 +375,7 @@ public class SpeechRecognitionService: @unchecked Sendable {
         let newRequest = SFSpeechAudioBufferRecognitionRequest()
         newRequest.shouldReportPartialResults = true
         newRequest.requiresOnDeviceRecognition = requiresOnDeviceRecognition && rec.supportsOnDeviceRecognition
+        newRequest.addsPunctuation = true
         let newRequestId = UUID()
 
         self.currentRequest = newRequest
@@ -534,6 +537,22 @@ public class SpeechRecognitionService: @unchecked Sendable {
         let bTrimmed = b.trimmingCharacters(in: .whitespacesAndNewlines)
         if aTrimmed.isEmpty { return bTrimmed }
         if bTrimmed.isEmpty { return aTrimmed }
+
+        let terminalPunctuation: Set<Character> = [".", "!", "?", ":", ";", "…"]
+        if let last = aTrimmed.last, terminalPunctuation.contains(last) {
+            return "\(aTrimmed) \(bTrimmed)"
+        }
+
+        if let last = aTrimmed.last, last == "," {
+            return "\(aTrimmed) \(bTrimmed)"
+        }
+
+        // Se o novo bloco inicia com letra maiúscula (indicando nova frase independente após pausa),
+        // encerra a elocução anterior com ponto final se esta não tinha pontuação
+        if let first = bTrimmed.first, first.isUppercase {
+            return "\(aTrimmed). \(bTrimmed)"
+        }
+
         return "\(aTrimmed) \(bTrimmed)"
     }
 }

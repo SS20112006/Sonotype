@@ -92,4 +92,16 @@ final class PunctuationServiceTests: XCTestCase {
         let output = service.process(text: input, language: .portuguesePT, oralCommandsEnabled: false, autoFinalPeriod: true)
         XCTAssertEqual(output, "este texto já tem ponto.")
     }
+
+    func testAdjustInterrogativePunctuationPortuguese() {
+        let input = "achas que já está a funcionar ponto final espero mesmo que sim ponto final"
+        let output = service.process(text: input, language: .portuguesePT)
+        XCTAssertEqual(output, "achas que já está a funcionar? espero mesmo que sim.")
+    }
+
+    func testAdjustInterrogativePunctuationEnglish() {
+        let input = "do you think this is working period I hope so period"
+        let output = service.process(text: input, language: .englishUS)
+        XCTAssertEqual(output, "do you think this is working? I hope so.")
+    }
 }
