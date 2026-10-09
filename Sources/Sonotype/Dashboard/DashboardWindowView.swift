@@ -17,7 +17,7 @@ public struct DashboardWindowView: View {
     public var body: some View {
         NavigationSplitView {
             sidebarContent
-                .navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 280)
+                .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 290)
         } detail: {
             VStack(spacing: 0) {
                 // Banner de Erro Reativo
@@ -28,12 +28,9 @@ public struct DashboardWindowView: View {
                 // Conteúdo Principal da Secção
                 detailContent
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                // Rodapé Semântico com Estado do Motor e Atalho Rápido
-                footerStatusBar
             }
         }
-        .frame(minWidth: 750, minHeight: 500)
+        .frame(minWidth: 720, minHeight: 480)
         .sensoryFeedback(.selection, trigger: viewModel.selectedSection)
         .task {
             viewModel.loadAll()
@@ -45,46 +42,90 @@ public struct DashboardWindowView: View {
     @ViewBuilder
     private var sidebarContent: some View {
         VStack(spacing: 0) {
-            // Cabeçalho da Aplicação na Barra Lateral
+            // Cabeçalho da Aplicação na Barra Lateral com Atalho Compacto
             HStack(spacing: 10) {
                 Image(systemName: "waveform.circle.fill")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 26, height: 26)
+                    .frame(width: 24, height: 24)
                     .foregroundStyle(Color.accentColor)
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Sonotype")
-                        .font(.system(size: 15, weight: .bold, design: .default)) // SF Pro Text <= 19pt
-                        .tracking(-0.23)
+                        .font(.system(size: 14, weight: .bold, design: .default)) // SF Pro Text <= 19pt
+                        .tracking(-0.2)
                         .foregroundStyle(.primary)
 
-                    Text("Ditado por Voz Offline")
-                        .font(.system(size: 11, weight: .regular, design: .default)) // SF Pro Text <= 19pt
+                    Text("Ditado por Voz")
+                        .font(.system(size: 11, weight: .regular, design: .default))
                         .tracking(0.06)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
+
+                // Atalho compacto no topo
+                HStack(spacing: 3) {
+                    Text("⌥")
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    Text("Espaço")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .strokeBorder(.separator, lineWidth: 0.5)
+                )
+                .help("Atalho global para iniciar ou parar o ditado")
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
+            .padding(.horizontal, 14)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
 
             Divider()
 
-            // Lista de Secções com Seleção Vinculada
-            List(
-                DashboardSection.allCases,
-                id: \.self,
-                selection: Binding(
-                    get: { viewModel.selectedSection },
-                    set: { if let section = $0 { viewModel.selectedSection = section } }
-                )
-            ) { section in
-                sidebarRow(for: section)
-                    .tag(section)
+            // Lista de Secções com Seleção Vinculada + Definições na Barra Lateral
+            List {
+                Section {
+                    ForEach(DashboardSection.allCases, id: \.self) { section in
+                        sidebarRow(for: section)
+                            .tag(section)
+                    }
+                }
+
+                Section {
+                    Button {
+                        onOpenSettings?()
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(Color.secondary)
+                                .frame(width: 20)
+
+                            Text("Definições")
+                                .font(.system(size: 13, weight: .medium, design: .default))
+                                .tracking(-0.08)
+                                .foregroundStyle(.primary)
+
+                            Spacer()
+
+                            Image(systemName: "arrow.up.forward.app")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.vertical, 4)
+                        .frame(minHeight: 32)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Abrir Definições do Sonotype (⌘,)")
+                    .accessibilityLabel("Definições")
+                }
             }
             .listStyle(.sidebar)
         }
@@ -191,93 +232,5 @@ public struct DashboardWindowView: View {
         .padding(.vertical, 8)
         .background(Color.yellow.opacity(0.12))
         .overlay(Divider(), alignment: .bottom)
-    }
-
-    // MARK: - Rodapé de Estado (Status Bar)
-
-    @ViewBuilder
-    private var footerStatusBar: some View {
-        HStack(spacing: 16) {
-            // Indicador de Estado do Motor de Áudio
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(Color.green)
-                    .frame(width: 8, height: 8)
-
-                Text("Motor Offline Pronto")
-                    .font(.system(size: 11, weight: .medium, design: .default)) // SF Pro Text <= 19pt
-                    .tracking(0.06)
-                    .foregroundStyle(.secondary)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Estado: Motor Offline Pronto")
-
-            Text("•")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
-
-            // Garantia de Privacidade Local
-            HStack(spacing: 4) {
-                Image(systemName: "shield.checkered")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-
-                Text("100% Local (Zero Nuvem)")
-                    .font(.system(size: 11, weight: .regular, design: .default)) // SF Pro Text <= 19pt
-                    .tracking(0.06)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            // Indicador de Atalho de Teclado
-            HStack(spacing: 6) {
-                Text("Atalho de Ditado:")
-                    .font(.system(size: 11, weight: .regular, design: .default)) // SF Pro Text <= 19pt
-                    .tracking(0.06)
-                    .foregroundStyle(.secondary)
-
-                Text("⌥ Espaço")
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced)) // SF Pro Text <= 19pt
-                    .tracking(0.0)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .strokeBorder(.separator, lineWidth: 0.5)
-                    )
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Atalho de ditado: Option + Espaço")
-
-            // Botão de Atalho Rápido para Definições
-            Button {
-                onOpenSettings?()
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 11, weight: .medium))
-                    Text("Definições")
-                        .font(.system(size: 11, weight: .medium, design: .default)) // SF Pro Text <= 19pt
-                        .tracking(0.06)
-                }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .strokeBorder(.separator, lineWidth: 0.5)
-                )
-            }
-            .buttonStyle(.plain)
-            .help("Abrir Definições do Sonotype (⌘,)")
-            .accessibilityLabel("Abrir Definições")
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(.regularMaterial)
-        .overlay(Divider(), alignment: .top)
     }
 }

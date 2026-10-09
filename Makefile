@@ -28,8 +28,8 @@ local: build
 	@cp .build/release/$(APP_NAME) $(MACOS_DIR)/$(APP_NAME)
 	@cp $(INFO_PLIST) $(CONTENTS_DIR)/Info.plist
 	@if [ -f $(ENTITLEMENTS) ]; then cp $(ENTITLEMENTS) $(RESOURCES_DIR)/; fi
-	@echo "==> A assinar com entitlements locais e designated requirement..."
-	@codesign --force --sign - -r $(REQUIREMENTS) --entitlements $(ENTITLEMENTS) $(APP_BUNDLE)
+	@echo "==> A assinar bundle localmente com entitlements..."
+	@codesign --force --deep --sign - --entitlements $(ENTITLEMENTS) $(APP_BUNDLE)
 	@echo "==> Bundle pronto em $(APP_BUNDLE)"
 
 run: local
