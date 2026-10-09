@@ -311,12 +311,8 @@ public struct OnboardingView: View {
 
     private var playgroundStepView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "sparkles.rectangle.stack.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 64, height: 64)
-                .foregroundStyle(Color.accentColor)
-                .accessibilityHidden(true)
+            SonotypeBrandLogoView(size: 64)
+                .shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 3)
 
             Text("Campo de Teste")
                 .font(.system(size: 22, weight: .bold)) // SF Pro Display >= 20pt

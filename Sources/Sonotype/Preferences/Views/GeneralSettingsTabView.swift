@@ -13,6 +13,31 @@ public struct GeneralSettingsTabView: View {
     public var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 18) {
+                // Secção 0: Identidade Visual da Aplicação
+                HStack(spacing: 16) {
+                    SonotypeBrandLogoView(size: 56)
+                        .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Sonotype")
+                            .font(.system(size: 18, weight: .bold)) // SF Pro Text <= 19pt
+                            .tracking(-0.3)
+                            .foregroundStyle(.primary)
+
+                        Text("Ditado por Voz Offline no Dispositivo")
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(.secondary)
+
+                        Text("Versão 1.0.0 • macOS")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Spacer()
+                }
+                .padding(.horizontal, 4)
+                .padding(.bottom, 2)
+
                 // Secção 1: Arranque com o Sistema
                 SettingsCard(
                     title: "Arranque do Sistema",

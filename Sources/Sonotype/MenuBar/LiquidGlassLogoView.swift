@@ -167,12 +167,22 @@ public struct LiquidGlassLogoView: View {
     private var centerGlyphLayer: some View {
         let glyphColor = Self.glyphColor(for: state, colorScheme: colorScheme)
 
-        Image(systemName: "waveform")
-            .font(.system(size: size * 0.44, weight: .semibold, design: .default)) // SF Pro Text <= 19pt
-            .foregroundStyle(glyphColor)
-            .shadow(color: Self.causticColor(for: state).opacity(0.45), radius: isHovered ? 2.5 : 1.5, x: 0, y: 0.5)
-            .scaleEffect(state == .recording ? (isPulsing ? 1.06 : 0.96) : 1.0)
-            .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isPulsing)
+        if let logo = SonotypeBrandAsset.logoImage {
+            Image(nsImage: logo)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size * 0.72, height: size * 0.72)
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.16, style: .continuous))
+                .scaleEffect(state == .recording ? (isPulsing ? 1.06 : 0.96) : 1.0)
+                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isPulsing)
+        } else {
+            Image(systemName: "waveform")
+                .font(.system(size: size * 0.44, weight: .semibold, design: .default)) // SF Pro Text <= 19pt
+                .foregroundStyle(glyphColor)
+                .shadow(color: Self.causticColor(for: state).opacity(0.45), radius: isHovered ? 2.5 : 1.5, x: 0, y: 0.5)
+                .scaleEffect(state == .recording ? (isPulsing ? 1.06 : 0.96) : 1.0)
+                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isPulsing)
+        }
     }
 
     /// Glint especular superior (reflexão curvada de luz ambiente).
