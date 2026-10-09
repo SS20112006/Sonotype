@@ -112,6 +112,8 @@ public struct StatsSettingsTabView: View {
                 }
             }
             .padding(18)
+            .frame(maxWidth: 640)
+            .frame(maxWidth: .infinity, alignment: .top)
         }
     }
 }

@@ -251,6 +251,8 @@ public struct PermissionsSettingsTabView: View {
                 accessibilityNoticeCard
             }
             .padding(18)
+            .frame(maxWidth: 640)
+            .frame(maxWidth: .infinity, alignment: .top)
         }
         .sensoryFeedback(.selection, trigger: coordinator.feedbackTrigger)
         .onAppear {
