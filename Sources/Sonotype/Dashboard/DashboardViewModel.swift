@@ -11,6 +11,7 @@ public enum DashboardSection: String, CaseIterable, Identifiable, Sendable {
     case history = "Histórico"
     case vocabulary = "Dicionário"
     case stats = "Estatísticas"
+    case settings = "Definições"
 
     public var id: String { rawValue }
 }

@@ -66,19 +66,24 @@ final class DashboardViewModelTests: XCTestCase {
         XCTAssertEqual(DashboardSection.history.rawValue, "Histórico")
         XCTAssertEqual(DashboardSection.vocabulary.rawValue, "Dicionário")
         XCTAssertEqual(DashboardSection.stats.rawValue, "Estatísticas")
+        XCTAssertEqual(DashboardSection.settings.rawValue, "Definições")
 
         XCTAssertEqual(DashboardSection.home.id, "Início")
         XCTAssertEqual(DashboardSection.history.id, "Histórico")
         XCTAssertEqual(DashboardSection.vocabulary.id, "Dicionário")
         XCTAssertEqual(DashboardSection.stats.id, "Estatísticas")
+        XCTAssertEqual(DashboardSection.settings.id, "Definições")
 
-        XCTAssertEqual(DashboardSection.allCases.count, 4)
+        XCTAssertEqual(DashboardSection.allCases.count, 5)
 
         viewModel.selectedSection = .vocabulary
         XCTAssertEqual(viewModel.selectedSection, .vocabulary)
 
         viewModel.selectedSection = .stats
         XCTAssertEqual(viewModel.selectedSection, .stats)
+
+        viewModel.selectedSection = .settings
+        XCTAssertEqual(viewModel.selectedSection, .settings)
     }
 
     // MARK: - 3. Filtragem de Pesquisa por Substring

@@ -85,7 +85,13 @@ final class DashboardViewsTests: XCTestCase {
         XCTAssertGreaterThan(viewModel.stats.estimatedTimeSavedMinutes, 0)
     }
 
-    // MARK: - 5. Comportamento do AppDelegate ao Reabrir Janela
+    // MARK: - 5. Comportamento do AppDelegate ao Reabrir Janela e Navegação Direta
+    func testDashboardWindowViewSettingsSectionRendering() {
+        let view = DashboardWindowView(viewModel: viewModel)
+        viewModel.selectedSection = .settings
+        XCTAssertNotNil(view.body)
+        XCTAssertEqual(viewModel.selectedSection, .settings)
+    }
 
     func testAppDelegateDashboardWindowActivation() {
         let appDelegate = AppDelegate()
@@ -94,5 +100,14 @@ final class DashboardViewsTests: XCTestCase {
 
         let handled = appDelegate.applicationShouldHandleReopen(NSApplication.shared, hasVisibleWindows: false)
         XCTAssertTrue(handled, "applicationShouldHandleReopen deve retornar true e tentar abrir a janela se não houver janelas visíveis.")
+    }
+
+    func testAppDelegateOpenDashboardWithSection() {
+        let appDelegate = AppDelegate()
+        appDelegate.openDashboard(section: .settings)
+        XCTAssertEqual(appDelegate.resolvedDashboardViewModel().selectedSection, .settings)
+
+        appDelegate.openDashboard(section: .history)
+        XCTAssertEqual(appDelegate.resolvedDashboardViewModel().selectedSection, .history)
     }
 }

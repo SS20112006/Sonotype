@@ -8,7 +8,9 @@ public enum QuickPopoverState: Sendable, Equatable {
 }
 
 /// Vista compacta exibida no popover da barra de menus ao clicar no ícone do Sonotype.
-/// Cumpre estritamente Apple HIG, WCAG 2.1 AA e princípios de ergonomia e tipografia SF Pro Text.
+/// Inspirada no Centro de Controlo e menus nativos do macOS da Apple (estilo janelas/tiles).
+/// Contém módulo de ditado tátil, cartões lado a lado para Dashboard e Definições,
+/// e encerramento discreto, cumprindo rigorosamente Apple HIG e WCAG 2.1 AA.
 public struct QuickPopoverView: View {
     public let state: QuickPopoverState
     public let currentLanguage: String
@@ -22,7 +24,7 @@ public struct QuickPopoverView: View {
     @State private var recordingTrigger: Int = 0
     @State private var navigationTrigger: Int = 0
     @State private var quitTrigger: Int = 0
-    @State private var hoveredButtonId: String? = nil
+    @State private var hoveredControlId: String? = nil
 
     public init(
         state: QuickPopoverState = .idle,
@@ -43,100 +45,27 @@ public struct QuickPopoverView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // Header: Marca + Estado + Idioma
-            HStack(spacing: 10) {
-                LiquidGlassLogoView(
-                    state: state,
-                    size: 34,
-                    action: {
-                        recordingTrigger += 1
-                        onToggleRecording?()
-                    }
-                )
+        VStack(spacing: 8) {
+            // Módulo Principal de Ditado (estilo Apple Control Center)
+            dictationModuleCard
 
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Sonotype")
-                        .font(.system(size: 15, weight: .bold, design: .default)) // SF Pro Text <= 19pt
-                        .tracking(-0.23)
-                        .foregroundStyle(.primary)
-
-                    statusLabel
-                }
-                .accessibilityElement(children: .combine)
-
-                Spacer()
-
-                // Badge de Idioma (WCAG AA contraste)
-                Text(currentLanguage)
-                    .font(.system(size: 11, weight: .semibold, design: .default)) // SF Pro Text <= 19pt
-                    .tracking(0.06)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(.quaternary, in: Capsule())
-                    .accessibilityLabel("Idioma atual: \(currentLanguage)")
-            }
-
-            // Cartão de Atalho com tecla estilizada
-            HStack {
-                Text("Atalho de Ditado")
-                    .font(.system(size: 12, weight: .medium, design: .default)) // SF Pro Text <= 19pt
-                    .tracking(0.0)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Text(hotkeyDisplay)
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced)) // SF Pro Text <= 19pt
-                    .tracking(0.0)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .strokeBorder(.separator, lineWidth: 0.5)
-                    )
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Atalho de ditado: \(hotkeyDisplay)")
-
-            Divider()
-
-            // Ações Principais
-            VStack(spacing: 6) {
-                // Ação rápida: Testar / Alternar Ditado (44pt target footprint)
-                popoverButton(
-                    id: "record",
-                    title: state == .recording ? "Parar Ditado" : "Iniciar Ditado",
-                    icon: state == .recording ? "stop.fill" : "mic.fill",
-                    isPrimary: true,
-                    tooltip: state == .recording ? "Interromper gravação atual" : "Começar ditado por voz"
-                ) {
-                    recordingTrigger += 1
-                    onToggleRecording?()
-                }
-
-                // Abrir Dashboard
-                popoverButton(
+            // Janelas Rápidas lado a lado (Estilo Apple Control Center: Dashboard + Definições)
+            HStack(spacing: 8) {
+                actionTile(
                     id: "dashboard",
-                    title: "Abrir Dashboard",
-                    icon: "sidebar.left",
-                    tooltip: "Abrir a janela principal do Sonotype"
+                    title: "Dashboard",
+                    icon: "macwindow",
+                    tooltip: "Abrir o Dashboard do Sonotype"
                 ) {
                     navigationTrigger += 1
                     onOpenDashboard?()
                 }
 
-                // Definições
-                popoverButton(
+                actionTile(
                     id: "settings",
-                    title: "Definições...",
-                    icon: "gearshape",
-                    tooltip: "Configurar idioma, modelo e atalhos"
+                    title: "Definições",
+                    icon: "gearshape.fill",
+                    tooltip: "Abrir Definições no Dashboard"
                 ) {
                     navigationTrigger += 1
                     onOpenSettings?()
@@ -144,138 +73,220 @@ public struct QuickPopoverView: View {
             }
 
             Divider()
+                .padding(.vertical, 2)
 
-            // Ação de Encerrar
+            // Rodapé discreto: Encerrar
             quitButton
         }
-        .padding(14)
-        .frame(width: 270)
+        .padding(10)
+        .frame(width: 260)
         .background(.regularMaterial)
         .sensoryFeedback(.impact(weight: .medium, intensity: 1.0), trigger: recordingTrigger)
         .sensoryFeedback(.selection, trigger: navigationTrigger)
         .sensoryFeedback(.impact(weight: .light, intensity: 1.0), trigger: quitTrigger)
     }
 
-    @ViewBuilder
-    private var statusLabel: some View {
-        HStack(spacing: 5) {
-            Circle()
-                .fill(statusColor)
-                .frame(width: 7, height: 7)
-
-            Text(statusText)
-                .font(.system(size: 12, weight: .medium, design: .default)) // SF Pro Text <= 19pt
-                .tracking(0.0)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var statusColor: Color {
-        switch state {
-        case .idle: return .green
-        case .recording: return .red
-        case .processing: return .orange
-        }
-    }
-
-    private var statusText: String {
-        switch state {
-        case .idle: return "Pronto para ditar"
-        case .recording: return "A gravar voz..."
-        case .processing: return "A processar texto..."
-        }
-    }
+    // MARK: - Módulo de Ditado (Card Principal)
 
     @ViewBuilder
-    private func popoverButton(
+    private var dictationModuleCard: some View {
+        let isHovered = hoveredControlId == "record"
+        let isRecording = state == .recording
+
+        Button {
+            recordingTrigger += 1
+            onToggleRecording?()
+        } label: {
+            HStack(spacing: 10) {
+                // Ícone circular com estado
+                ZStack {
+                    Circle()
+                        .fill(iconCircleFill)
+                        .frame(width: 34, height: 34)
+
+                    Image(systemName: iconName)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(iconForeground)
+                }
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(titleText)
+                        .font(.system(size: 13, weight: .semibold, design: .default)) // SF Pro Text <= 19pt
+                        .tracking(-0.08)
+                        .foregroundStyle(.primary)
+
+                    // Atalho discreto sem ênfase excessiva
+                    Text(hotkeyDisplay)
+                        .font(.system(size: 11, weight: .regular, design: .monospaced)) // SF Pro Text <= 19pt
+                        .tracking(0.0)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                // Indicador subtil de estado
+                Circle()
+                    .fill(statusDotColor)
+                    .frame(width: 8, height: 8)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(minHeight: 50)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(cardBackgroundColor(isHovered: isHovered, isRecording: isRecording))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(isRecording ? Color.red.opacity(0.4) : Color.primary.opacity(0.06), lineWidth: 0.5)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(state == .recording ? "Parar gravação de voz" : "Iniciar ditado por voz (\(hotkeyDisplay))")
+        .onHover { hovering in
+            hoveredControlId = hovering ? "record" : nil
+        }
+        .accessibilityLabel(titleText)
+        .accessibilityHint("Alternar gravação de voz")
+    }
+
+    private var iconName: String {
+        switch state {
+        case .idle: return "mic.fill"
+        case .recording: return "stop.fill"
+        case .processing: return "arrow.triangle.2.circlepath"
+        }
+    }
+
+    private var iconForeground: Color {
+        .white
+    }
+
+    private var iconCircleFill: Color {
+        switch state {
+        case .idle: return Color.accentColor
+        case .recording: return Color.red
+        case .processing: return Color.orange
+        }
+    }
+
+    private var statusDotColor: Color {
+        switch state {
+        case .idle: return Color.green
+        case .recording: return Color.red
+        case .processing: return Color.orange
+        }
+    }
+
+    private var titleText: String {
+        switch state {
+        case .idle: return "Ditado"
+        case .recording: return "A gravar..."
+        case .processing: return "A processar..."
+        }
+    }
+
+    private func cardBackgroundColor(isHovered: Bool, isRecording: Bool) -> Color {
+        if isRecording {
+            return isHovered ? Color.red.opacity(0.18) : Color.red.opacity(0.10)
+        } else {
+            return isHovered ? Color.primary.opacity(0.09) : Color.primary.opacity(0.05)
+        }
+    }
+
+    // MARK: - Janelas / Cartões Rápidos de Ação (Dashboard & Definições)
+
+    @ViewBuilder
+    private func actionTile(
         id: String,
         title: String,
         icon: String,
-        isPrimary: Bool = false,
         tooltip: String,
         action: @escaping () -> Void
     ) -> some View {
-        let isHovered = hoveredButtonId == id
+        let isHovered = hoveredControlId == id
 
         Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: isPrimary ? .semibold : .regular))
-                    .foregroundStyle(isPrimary ? Color.accentColor : Color.primary)
-                    .frame(width: 18)
+            VStack(spacing: 5) {
+                ZStack {
+                    Circle()
+                        .fill(isHovered ? Color.primary.opacity(0.12) : Color.primary.opacity(0.06))
+                        .frame(width: 28, height: 28)
+
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.primary)
+                }
 
                 Text(title)
-                    .font(.system(size: 13, weight: isPrimary ? .semibold : .medium, design: .default)) // SF Pro Text <= 19pt
-                    .tracking(-0.08)
+                    .font(.system(size: 11, weight: .medium, design: .default)) // SF Pro Text <= 19pt
+                    .tracking(-0.04)
                     .foregroundStyle(.primary)
-
-                Spacer()
             }
-            .padding(.horizontal, 10)
-            .frame(minHeight: isPrimary ? 44 : 38) // Ergonomia Apple HIG (44pt para ação primária, 38pt com área completa para secundárias)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .frame(minHeight: 54) // HIG alvo de toque confortável (> 44pt)
             .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(buttonBackgroundColor(isPrimary: isPrimary, isHovered: isHovered))
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(isHovered ? Color.primary.opacity(0.09) : Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(tooltip)
         .onHover { hovering in
-            hoveredButtonId = hovering ? id : nil
+            hoveredControlId = hovering ? id : nil
         }
         .accessibilityLabel(title)
         .accessibilityHint(tooltip)
     }
 
-    private func buttonBackgroundColor(isPrimary: Bool, isHovered: Bool) -> Color {
-        if isPrimary {
-            return isHovered ? Color.accentColor.opacity(0.20) : Color.accentColor.opacity(0.12)
-        } else {
-            return isHovered ? Color.primary.opacity(0.08) : Color.clear
-        }
-    }
+    // MARK: - Botão de Encerrar
 
     @ViewBuilder
     private var quitButton: some View {
-        let isHovered = hoveredButtonId == "quit"
+        let isHovered = hoveredControlId == "quit"
 
         Button(role: .destructive) {
             quitTrigger += 1
             onQuit?()
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: "power")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(isHovered ? .red : .secondary)
 
-                Text("Encerrar o Sonotype")
-                    .font(.system(size: 13, weight: .regular, design: .default)) // SF Pro Text <= 19pt
-                    .tracking(-0.08)
-                    .foregroundStyle(isHovered ? .red : .primary)
+                Text("Encerrar")
+                    .font(.system(size: 12, weight: .regular, design: .default)) // SF Pro Text <= 19pt
+                    .tracking(-0.04)
+                    .foregroundStyle(isHovered ? .red : .secondary)
 
                 Spacer()
 
-                // Contraste WCAG 2.1 AA: .secondary assegura >= 4.5:1
                 Text("⌘Q")
-                    .font(.system(size: 11, weight: .medium, design: .default)) // SF Pro Text <= 19pt
-                    .tracking(0.06)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 11, weight: .regular, design: .default))
+                    .tracking(0.04)
+                    .foregroundStyle(isHovered ? Color.red.opacity(0.8) : Color.secondary)
             }
-            .padding(.horizontal, 10)
-            .frame(minHeight: 38) // Ergonomia Apple HIG com contentShape completo
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .frame(minHeight: 28)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(isHovered ? Color.red.opacity(0.12) : Color.clear)
+                    .fill(isHovered ? Color.red.opacity(0.08) : Color.clear)
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help("Encerrar o Sonotype (⌘Q)")
         .onHover { hovering in
-            hoveredButtonId = hovering ? "quit" : nil
+            hoveredControlId = hovering ? "quit" : nil
         }
         .accessibilityLabel("Encerrar o Sonotype")
-        .accessibilityHint("Fecha a aplicação Sonotype")
     }
 }

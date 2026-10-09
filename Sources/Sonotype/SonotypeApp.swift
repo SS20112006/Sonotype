@@ -24,6 +24,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
     public private(set) var permissionsService: PermissionsServiceProtocol?
     public private(set) var settingsWindow: NSWindow?
     public private(set) var onboardingWindow: NSWindow?
+    public private(set) var dashboardViewModel: DashboardViewModel?
 
     public var activeLanguage: SpeechLanguage = .portuguesePT
     public var currentTranscription: String = ""
@@ -96,6 +97,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
         self.languageDetector = languageDetector
         self.postProcessor = postProcessor
         self.injectionService = injectionService
+        self.dashboardViewModel = DashboardViewModel(
+            repository: repository,
+            preferencesManager: preferencesManager,
+            permissionsService: permissionsService,
+            autoLoad: true
+        )
 
         // Resolução inicial do idioma com base em LanguageSelectionMode
         switch preferencesManager.preferences.languageSelectionMode {
@@ -438,10 +445,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
 
         // 5. Liga ações da MenuBar para abrir o Dashboard e gerir janelas
         menuBarManager.onOpenDashboard = { [weak self] in
-            self?.openDashboardWindow()
+            self?.openDashboard(section: .home)
         }
         menuBarManager.onOpenSettings = { [weak self] in
-            self?.openSettingsWindow()
+            self?.openDashboard(section: .settings)
         }
 
         // 6. Inicia observação de janelas para o modo dinâmico da Dock
@@ -449,6 +456,27 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, Sendable {
 
         // 7. Inicia escuta global de atalhos
         finalCoordinator.start()
+    }
+
+    /// Obtém ou instancia o ViewModel do Dashboard partilhado da aplicação.
+    public func resolvedDashboardViewModel() -> DashboardViewModel {
+        if let vm = dashboardViewModel {
+            return vm
+        }
+        let vm = DashboardViewModel(
+            repository: repository ?? .shared,
+            preferencesManager: preferencesManager ?? .shared,
+            permissionsService: permissionsService ?? PermissionsService(),
+            autoLoad: true
+        )
+        self.dashboardViewModel = vm
+        return vm
+    }
+
+    /// Abre o Dashboard focando uma secção específica (Início, Definições, etc.).
+    public func openDashboard(section: DashboardSection = .home) {
+        resolvedDashboardViewModel().selectedSection = section
+        openDashboardWindow()
     }
 
     /// Traz as janelas principais para a frente e sincroniza o estado da Dock.
@@ -650,14 +678,9 @@ struct SonotypeApp: App {
     var body: some Scene {
         WindowGroup("Sonotype") {
             DashboardWindowView(
-                viewModel: DashboardViewModel(
-                    repository: appDelegate.repository ?? .shared,
-                    preferencesManager: appDelegate.preferencesManager,
-                    permissionsService: appDelegate.permissionsService,
-                    autoLoad: true
-                ),
+                viewModel: appDelegate.resolvedDashboardViewModel(),
                 onOpenSettings: {
-                    appDelegate.openSettingsWindow()
+                    appDelegate.openDashboard(section: .settings)
                 }
             )
         }

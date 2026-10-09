@@ -83,43 +83,28 @@ public struct DashboardWindowView: View {
 
             Divider()
 
-            // Lista de Secções com Seleção Vinculada + Definições na Barra Lateral
-            List {
+            // Lista de Secções com Seleção Vinculada + Definições integradas
+            List(selection: $viewModel.selectedSection) {
                 Section {
-                    ForEach(DashboardSection.allCases, id: \.self) { section in
-                        sidebarRow(for: section)
-                            .tag(section)
+                    ForEach([DashboardSection.home, .history, .vocabulary, .stats], id: \.self) { section in
+                        Button {
+                            viewModel.selectedSection = section
+                        } label: {
+                            sidebarRow(for: section)
+                        }
+                        .buttonStyle(.plain)
+                        .tag(section)
                     }
                 }
 
                 Section {
                     Button {
-                        onOpenSettings?()
+                        viewModel.selectedSection = .settings
                     } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "gearshape")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(Color.secondary)
-                                .frame(width: 20)
-
-                            Text("Definições")
-                                .font(.system(size: 13, weight: .medium, design: .default))
-                                .tracking(-0.08)
-                                .foregroundStyle(.primary)
-
-                            Spacer()
-
-                            Image(systemName: "arrow.up.forward.app")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(.vertical, 4)
-                        .frame(minHeight: 32)
-                        .contentShape(Rectangle())
+                        sidebarRow(for: .settings)
                     }
                     .buttonStyle(.plain)
-                    .help("Abrir Definições do Sonotype (⌘,)")
-                    .accessibilityLabel("Definições")
+                    .tag(DashboardSection.settings)
                 }
             }
             .listStyle(.sidebar)
@@ -131,16 +116,17 @@ public struct DashboardWindowView: View {
 
     @ViewBuilder
     private func sidebarRow(for section: DashboardSection) -> some View {
+        let isSelected = viewModel.selectedSection == section
         HStack(spacing: 10) {
             Image(systemName: sectionIcon(for: section))
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(viewModel.selectedSection == section ? Color.accentColor : Color.secondary)
+                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                 .frame(width: 20)
 
             Text(section.rawValue)
-                .font(.system(size: 13, weight: .medium, design: .default)) // SF Pro Text <= 19pt
+                .font(.system(size: 13, weight: isSelected ? .semibold : .medium, design: .default)) // SF Pro Text <= 19pt
                 .tracking(-0.08)
-                .foregroundStyle(.primary)
+                .foregroundStyle(isSelected ? .primary : .secondary)
 
             Spacer()
 
@@ -154,8 +140,13 @@ public struct DashboardWindowView: View {
                     .background(.quaternary, in: Capsule())
             }
         }
-        .padding(.vertical, 4)
-        .frame(minHeight: 32)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .frame(minHeight: 34)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
+        )
         .contentShape(Rectangle())
         .accessibilityLabel(section.rawValue)
     }
@@ -170,12 +161,14 @@ public struct DashboardWindowView: View {
             return "character.book.closed"
         case .stats:
             return "chart.bar.xaxis"
+        case .settings:
+            return "gearshape"
         }
     }
 
     private func sectionBadge(for section: DashboardSection) -> String? {
         switch section {
-        case .home:
+        case .home, .settings:
             return nil
         case .history:
             return viewModel.historyRecords.isEmpty ? nil : "\(viewModel.historyRecords.count)"
@@ -193,14 +186,49 @@ public struct DashboardWindowView: View {
     private var detailContent: some View {
         switch viewModel.selectedSection {
         case .home:
-            HomeOverviewView(viewModel: viewModel, onOpenSettings: onOpenSettings)
+            HomeOverviewView(viewModel: viewModel, onOpenSettings: {
+                viewModel.selectedSection = .settings
+            })
         case .history:
             HistoryListView(viewModel: viewModel)
         case .vocabulary:
             VocabularyManagerView(viewModel: viewModel)
         case .stats:
             StatsOverviewView(viewModel: viewModel)
+        case .settings:
+            settingsDetailPane
         }
+    }
+
+    @ViewBuilder
+    private var settingsDetailPane: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Definições")
+                        .font(.system(size: 24, weight: .bold, design: .default)) // SF Pro Display >= 20pt
+                        .tracking(0.38)
+                        .foregroundStyle(.primary)
+
+                    Text("Personalize atalhos, reconhecimento de fala, permissões e formatação.")
+                        .font(.system(size: 13, weight: .regular, design: .default)) // SF Pro Text <= 19pt
+                        .tracking(-0.08)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+
+            SettingsView(
+                preferencesManager: viewModel.preferencesManager ?? .shared,
+                permissionsService: viewModel.permissionsService ?? PermissionsService(),
+                initialTab: .general,
+                isEmbedded: true
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .background(.thinMaterial)
     }
 
     // MARK: - Banner de Erro

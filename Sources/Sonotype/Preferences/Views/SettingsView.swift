@@ -8,6 +8,7 @@ public struct SettingsView: View {
     @ObservedObject public var preferencesManager: PreferencesManager
     public let permissionsService: PermissionsServiceProtocol
     public var onRelaunchOnboarding: (@MainActor @Sendable () -> Void)?
+    public let isEmbedded: Bool
     @State public var selectedTab: SettingsTab
     @StateObject private var permissionsCoordinator: PermissionsSettingsCoordinator
 
@@ -15,10 +16,12 @@ public struct SettingsView: View {
         preferencesManager: PreferencesManager = .shared,
         permissionsService: PermissionsServiceProtocol = PermissionsService(),
         initialTab: SettingsTab = .general,
+        isEmbedded: Bool = false,
         onRelaunchOnboarding: (@MainActor @Sendable () -> Void)? = nil
     ) {
         self.preferencesManager = preferencesManager
         self.permissionsService = permissionsService
+        self.isEmbedded = isEmbedded
         self._selectedTab = State(initialValue: initialTab)
         self.onRelaunchOnboarding = onRelaunchOnboarding
         self._permissionsCoordinator = StateObject(wrappedValue: PermissionsSettingsCoordinator(
@@ -65,7 +68,14 @@ public struct SettingsView: View {
                 }
                 .tag(SettingsTab.stats)
         }
-        .frame(minWidth: 540, idealWidth: 560, maxWidth: 620, minHeight: 480, idealHeight: 540)
+        .frame(
+            minWidth: 500,
+            idealWidth: isEmbedded ? nil : 560,
+            maxWidth: isEmbedded ? .infinity : 620,
+            minHeight: 480,
+            idealHeight: isEmbedded ? nil : 540,
+            maxHeight: isEmbedded ? .infinity : nil
+        )
         .sensoryFeedback(.selection, trigger: selectedTab)
     }
 }
